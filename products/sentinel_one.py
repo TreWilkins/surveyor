@@ -12,7 +12,7 @@ from tqdm import tqdm
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
-from typing import Optional, Tuple, Callable, Any, cast
+from typing import Optional, Tuple, Callable, Any
 import re
 
 import requests
@@ -95,9 +95,9 @@ class SentinelOne(Product):
     def __init__(self, pq: bool = False, **kwargs):
   
         self.profile = kwargs['profile'] if 'profile' in kwargs else 'default'
-        self._site_ids = kwargs.get('site_id', []) or list()
-        self._account_ids = kwargs.get('account_id', []) or list()
-        self._account_names = kwargs.get('account_name', []) or list()
+        self._site_ids = kwargs.get('site_ids', []) or list()
+        self._account_ids = kwargs.get('account_ids', []) or list()
+        self._account_names = kwargs.get('account_names', []) or list()
         self._url = kwargs['url'] if 'url' in kwargs else ''
         self._token = kwargs['token'] if 'token' in kwargs else None
         self.creds_file = kwargs['creds_file'] if 'creds_file' in kwargs else None
