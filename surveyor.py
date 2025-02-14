@@ -2,7 +2,7 @@ import sys
 
 # ensure Python version is compatible (Python v2 will always error out)
 if sys.version_info.major == 3 and sys.version_info.minor < 9:
-    print(f'Python 3.9+ is required to run Surveyor (current: {sys.version_info.major}.{sys.version_info.minor})')
+    print(f'Python 3.10+ is required to run Surveyor (current: {sys.version_info.major}.{sys.version_info.minor})')
     exit(1)
 
 import csv

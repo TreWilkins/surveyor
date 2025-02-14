@@ -31,7 +31,7 @@ You can find out more about Surveyor from [this blog post](https://redcanary.com
 ## Get started
 
 For information about installing and using Surveyor, see the [Getting started](https://github.com/redcanaryco/surveyor/wiki/Getting-started)
-page of the wiki. Surveyor requires Python 3.9+.
+page of the wiki. Surveyor requires Python 3.10+.
 
 ## Contribute to Surveyor
 
