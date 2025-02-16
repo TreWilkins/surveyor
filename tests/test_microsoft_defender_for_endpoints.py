@@ -59,8 +59,6 @@ def test_build_query_with_unsupported_field(dfe_product: DefenderForEndpoints, m
     filters = {
         'foo': 'bar'
     }
-
-    mocker.patch('help.log_echo', return_value=None)
     dfe_product.log = logging.getLogger('pytest_surveyor')
 
     assert dfe_product.build_query(filters) == ''

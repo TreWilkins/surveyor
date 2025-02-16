@@ -152,11 +152,10 @@ class DefenderForEndpoints(Product):
                                     (timestamp,))
                     results.add(result)
             else:
-                self._echo(f"Received status code: {response.status_code} (message: {response.json()})")
+                self.log.error(f"Received status code: {response.status_code} (message: {response.json()})")
         except KeyboardInterrupt:
-            self._echo("Caught CTRL-C. Rerun surveyor")
+            self.log.exception("Caught CTRL-C. Rerun surveyor")
         except Exception as e:
-            self._echo(f"There was an exception {e}")
             self.log.exception(e)
         
         # Raw Feature (Inactive)
@@ -208,8 +207,7 @@ class DefenderForEndpoints(Product):
                     if search_field in PARAMETER_MAPPING:
                         query = f"| where {PARAMETER_MAPPING[search_field]['field']} has_any ({all_terms})"
                     else:
-                        self._echo(f'Query filter {search_field} is not supported by product {self.product}',
-                                   logging.WARNING)
+                        self.log.warning(f'Query filter {search_field} is not supported by product {self.product}')
                         continue
                 
                     query = f"{PARAMETER_MAPPING[search_field]['table']} {query} "
@@ -222,7 +220,7 @@ class DefenderForEndpoints(Product):
 
                     self.process_search(tag, {}, query)
         except KeyboardInterrupt:
-            self._echo("Caught CTRL-C. Returning what we have...")
+            self.log.exception("Caught CTRL-C. Returning what we have...")
 
     def build_query(self, filters: dict) -> str:
         query_base = []
@@ -237,7 +235,7 @@ class DefenderForEndpoints(Product):
             elif key == 'username':
                 query_base.append(f'| where AccountName contains "{value}"')
             else:
-                self._echo(f'Query filter {key} is not supported by product {self.product}', logging.WARNING)
+                self.log.warning(f'Query filter {key} is not supported by product {self.product}')
 
         return ' '.join(query_base)
 

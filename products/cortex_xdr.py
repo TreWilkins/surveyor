@@ -188,7 +188,7 @@ class CortexXDR(Product):
                 # Need to look at both actor and action in case action is actually a filemod,netconn,regmod rather than proc
                 query_base += f' | filter action_process_username contains "{value}" or actor_primary_username contains "{value}"'
             else:
-                self._echo(f'Query filter {key} is not supported by product {self.product}', logging.WARNING)
+                self.log.warning(f'Query filter {key} is not supported by product {self.product}')
 
         # Cortex XDR requires the date range to be supplied in the query request, not the query text
         # therefore we return the relative time separately
@@ -222,8 +222,7 @@ class CortexXDR(Product):
                         self._queries[tag].append(Query(relative_time_ms, None, None, None, terms))
                 else:
                     if search_field not in PARAMETER_MAPPING:
-                        self._echo(f'Query filter {search_field} is not supported by product {self.product}',
-                                   logging.WARNING)
+                        self.log.warning(f'Query filter {search_field} is not supported by product {self.product}')
                         continue
 
                     parameter = PARAMETER_MAPPING[search_field]
@@ -239,7 +238,7 @@ class CortexXDR(Product):
 
                     self._queries[tag].append(Query(relative_time_ms, parameter, operator, search_value))
         except KeyboardInterrupt:
-            self._echo("Caught CTRL-C. Returning what we have...")
+            self.log.exception("Caught CTRL-C. Returning what we have...")
 
     def _get_xql_results(self, query_id: str) -> Tuple[dict, int]:
         params = {

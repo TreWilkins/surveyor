@@ -15,24 +15,6 @@ def _strip_ansi_codes(message: str) -> str:
     return ansi_escape_regex.sub('', message)
 
 
-def log_echo(message: str, log: logging.Logger, level: int = logging.DEBUG, use_tqdm: bool = False):
-    """
-    Write a command to STDOUT and the debug log stream.
-    """
-    color_message = message
-
-    if level == logging.WARNING:
-        color_message = f'\u001b[33m{color_message}\u001b[0m'
-    elif level >= logging.ERROR:
-        color_message = f'\u001b[31m{color_message}\u001b[0m'
-
-    if use_tqdm:
-        tqdm.write(color_message)
-
-    # strip ANSI sequences from log string
-    log.log(level, _strip_ansi_codes(message))
-
-
 def datetime_to_epoch_millis(date: datetime) -> int:
     """
     Convert a datetime object to an epoch timestamp in milliseconds.

@@ -49,7 +49,7 @@ class CbResponse(Product):
             elif key == 'username':
                 query_base += ' username:%s' % value
             else:
-                self._echo(f'Query filter {key} is not supported by product {self.product}', logging.WARNING)
+                self.log.warning(f'Query filter {key} is not supported by product {self.product}')
 
         if self._sensor_group:
             sensor_group = []
@@ -64,7 +64,7 @@ class CbResponse(Product):
         results = set()
 
         query = query + self.build_query(base_query)
-        self._echo(query)
+        self.log.info(query)
 
         try:
             # noinspection PyUnresolvedReferences
@@ -85,7 +85,7 @@ class CbResponse(Product):
                         break
                 
         except KeyboardInterrupt:
-            self._echo("Caught CTRL-C. Returning what we have . . .")
+            self.log.info("Caught CTRL-C. Returning what we have . . .")
         
         # Raw Feature (Inactive)
         '''
@@ -126,11 +126,10 @@ class CbResponse(Product):
                         break
                     
         except Exception as e:
-            self._echo(f'Error (see log for details): {e}', logging.ERROR)
             self.log.exception(e)
             pass
         except KeyboardInterrupt:
-            self._echo("Caught CTRL-C. Returning what we have . . .")
+            self.log.exception("Caught CTRL-C. Returning what we have . . .")
 
         self._add_results(list(results), tag)
 

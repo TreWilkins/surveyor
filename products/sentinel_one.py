@@ -348,7 +348,7 @@ class SentinelOne(Product):
                         query_base += ' AND '
                     query_base += f'UserName containscis "{value}"'
             else:
-                self._echo(f'Query filter {key} is not supported by product {self.product}', logging.WARNING)
+                self.log.warning(f'Query filter {key} is not supported by product {self.product}')
 
         # S1 requires the date range to be supplied in the query request, not the query text
         # therefore we return the from/to dates separately
@@ -493,7 +493,7 @@ class SentinelOne(Product):
     def process_search(self, tag: Tag, base_query: dict, query: str) -> None:
         build_query, from_date, to_date = self.build_query(base_query)
         self._query_base = build_query
-        self._echo(f'Built Query: {query}')
+        self.log.info(f'Built Query: {query}')
 
         if tag not in self._queries:
             self._queries[tag] = list()
@@ -511,8 +511,7 @@ class SentinelOne(Product):
         try:
             for search_field, terms in criteria.items():
                 if search_field not in self.parameter_mapping:
-                    self._echo(f'Query filter {search_field} is not supported by product {self.product}',
-                               logging.WARNING)
+                    self.log.warning(f'Query filter {search_field} is not supported by product {self.product}')
                     continue
                 parameter = self.parameter_mapping[search_field]
 
@@ -562,7 +561,7 @@ class SentinelOne(Product):
 
                             self._queries[tag].append(Query(from_date, to_date, param, operator, search_value))
         except KeyboardInterrupt:
-            self._echo("Caught CTRL-C. Returning what we have...")
+            self.log.exception("Caught CTRL-C. Returning what we have...")
 
     def _get_query_text(self) -> list[Tuple[Tag, str]]:
         # tuple contains tag and full query
@@ -799,7 +798,7 @@ class SentinelOne(Product):
 
                     cancel_event.wait(1)
             except KeyboardInterrupt:
-                self._echo("Caught CTRL-C. Returning what we have . . .")
+                self.log.exception("Caught CTRL-C. Returning what we have . . .")
                 cancel_event.set()
 
             p_bar.close()

@@ -4,8 +4,6 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Tuple, Optional, Any
 
-from help import log_echo
-
 
 class AuthenticationError(Exception):
     pass
@@ -131,12 +129,6 @@ class Product(ABC):
             self._results[tag] = list()
 
         self._results[tag].extend(results)
-
-    def _echo(self, message: str, level: int = logging.DEBUG):
-        """
-        Write a message to STDOUT and the debug log stream.
-        """
-        log_echo(message, self.log, level, use_tqdm=self._tqdm_echo)
 
 def sigma_translation(product: str, sigma_rules: list, pq: bool = False) -> dict:
     """

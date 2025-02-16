@@ -88,7 +88,7 @@ class CbEnterpriseEdr(Product):
                 user_name = f'process_username:{value}'
                 query_base.and_(user_name)
             else:
-                self._echo(f'Query filter {key} is not supported by product {self.product}', logging.WARNING)
+                self.log.warning(f'Query filter {key} is not supported by product {self.product}')
 
         if self._device_group:
             device_group = []
@@ -147,10 +147,9 @@ class CbEnterpriseEdr(Product):
                     break
 
         except cbc_sdk.errors.ApiError as e:
-            self._echo(f'CbC SDK Error (see log for details): {e}', logging.ERROR)
-            self.log.exception(e)
+            self.log.error(f'CbC SDK Error (see log for details): {e}')
         except KeyboardInterrupt:
-            self._echo("Caught CTRL-C. Returning what we have . . .")
+            self.log.exception("Caught CTRL-C. Returning what we have . . .")
         
         # Raw Feature (Inactive)
         ''' 
@@ -187,8 +186,7 @@ class CbEnterpriseEdr(Product):
                     terms = [(f'"{term}"' if ' ' in term else term) for term in chunk]
 
                     if search_field not in PARAMETER_MAPPING:
-                        self._echo(f'Query filter {search_field} is not supported by product {self.product}',
-                                logging.WARNING)
+                        self.log.warning(f'Query filter {search_field} is not supported by product {self.product}')
                         continue
 
                     query = '(' + ' OR '.join('%s:%s' % (PARAMETER_MAPPING[search_field], term) for term in terms) + ')'
