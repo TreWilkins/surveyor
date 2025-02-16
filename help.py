@@ -2,7 +2,6 @@ import logging
 import re
 from datetime import datetime, timezone
 
-import click
 # regular expression that detects ANSI color codes
 from tqdm import tqdm
 
@@ -29,8 +28,6 @@ def log_echo(message: str, log: logging.Logger, level: int = logging.DEBUG, use_
 
     if use_tqdm:
         tqdm.write(color_message)
-    else:
-        click.echo(color_message)
 
     # strip ANSI sequences from log string
     log.log(level, _strip_ansi_codes(message))

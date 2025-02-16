@@ -6,7 +6,6 @@ sys.path.append(os.getcwd())
 from surveyor import Surveyor
 from common import Tag
 
-
 @pytest.fixture
 def runner():
     return CliRunner()
@@ -78,19 +77,17 @@ def test_survey_cortex(runner, mocker):
         mocked_func.assert_called_once()
 
 
-def test_custom_query(mocker, capsys):
+def test_custom_query(mocker):
     """
     Verify when a query is passed, it is logged and an EDR product is called
     """
     mocker.patch('products.vmware_cb_response.CbResponse._authenticate')
     mocked_process_search = mocker.patch('products.vmware_cb_response.CbResponse.process_search')
     Surveyor("cbr").survey(query="SELECT * FROM processes")
-    captured = capsys.readouterr()
-    assert "Running Custom Query: SELECT * FROM processes" in captured.out
     mocked_process_search.assert_called_once_with(Tag('query'), {}, 'SELECT * FROM processes')
 
 
-def test_def_file(runner, mocker, capsys):
+def test_def_file(runner, mocker):
     """
     Verify when a definition file is passed, it is logged and an EDR product is called
     """
@@ -101,12 +98,10 @@ def test_def_file(runner, mocker, capsys):
         with open(def_file_path, 'w') as deffile:
             deffile.write("""{"ProgramA":{"process_name":["test.exe"]}}""")
         Surveyor("cbr").survey(def_file=def_file_path)
-        captured = capsys.readouterr()
-        assert "Processing definition files:" in str(captured)
         mocked_nested_process_search.assert_called_once_with(Tag('ProgramA', 'test_deffile'), {"process_name":["test.exe"]}, {})
 
 
-def test_def_file_with_base_query(runner, mocker, capsys):
+def test_def_file_with_base_query(runner, mocker):
     """
     Verify when a definition file is passed, it is logged and an EDR product is called
     """
@@ -118,12 +113,10 @@ def test_def_file_with_base_query(runner, mocker, capsys):
         with open(def_file_path, 'w') as deffile:
             deffile.write("""{"ProgramA":{"process_name":["test.exe"]}}""")
         Surveyor("cbr").survey(def_file=def_file_path, days=5, hostname="workstation1", username="admin")
-        captured = capsys.readouterr()
-        assert "Processing definition files:" in str(captured)
         mocked_nested_process_search.assert_called_once_with(Tag('ProgramA', 'test_deffile'), {"process_name":["test.exe"]}, {'days':5, 'hostname':'workstation1', 'username':'admin'})
 
 
-def test_def_dir(runner, mocker, capsys):
+def test_def_dir(runner, mocker):
     """
     Verify when a definition directory is passed, it is logged and an EDR product is called
     """
@@ -140,8 +133,6 @@ def test_def_dir(runner, mocker, capsys):
         expected_calls = [mocker.call(Tag('ProgramA', 'test_deffile1'),{"process_name":["test1.exe"]}, {}), 
                           mocker.call(Tag('ProgramB', 'test_deffile2'),{"process_name":["test2.exe"]}, {})]
         Surveyor("cbr").survey(def_dir=temp_dir)
-        captured = capsys.readouterr()
-        assert "Processing definition files:" in str(captured)
         mocked_nested_process_search.assert_has_calls(expected_calls, any_order=True)
 
 
@@ -163,8 +154,6 @@ def test_def_dir_with_base_query(runner, mocker, capsys):
         expected_calls = [mocker.call(Tag('ProgramA', 'test_deffile1'),{"process_name":["test1.exe"]}, {'days':5, 'hostname':'workstation1', 'username':'admin'}), 
                           mocker.call(Tag('ProgramB', 'test_deffile2'),{"process_name":["test2.exe"]}, {'days':5, 'hostname':'workstation1', 'username':'admin'})]
         Surveyor("cbr").survey(def_dir=temp_dir,days=5, hostname="workstation1", username="admin")
-        captured = capsys.readouterr()
-        assert "Processing definition files:" in str(captured)
         mocked_nested_process_search.assert_has_calls(expected_calls, any_order=True)
 
 
@@ -175,8 +164,6 @@ def test_invalid_def_file(mocker, capsys):
     mocker.patch('products.vmware_cb_response.CbResponse._authenticate')
     mocked_nested_process_search = mocker.patch('products.vmware_cb_response.CbResponse.nested_process_search')
     Surveyor("cbr").survey(def_file="nonexistent.json")
-    captured = capsys.readouterr()
-    assert "The deffile doesn't exist" in str(captured)
     mocked_nested_process_search.assert_not_called()
 
 
@@ -198,7 +185,7 @@ def test_invalid_sigma_dir(mocker):
     mocked_nested_process_search.assert_not_called()
 
 
-def test_ioc_file(runner, mocker, capsys):
+def test_ioc_file(runner, mocker):
     """
     Verify if an IOC file is passed, it is logged and an EDR product is called
     """
@@ -209,13 +196,11 @@ def test_ioc_file(runner, mocker, capsys):
         with open(ioc_file_path, 'w') as deffile:
             deffile.write("127.0.0.1")
         Surveyor("cbr").survey(ioc_file=ioc_file_path, ioc_type="ipaddr")
-        captured = capsys.readouterr()
-        assert "Processing IOC file" in str(captured)
         mocked_func.assert_called_once()
         mocked_nested_process_search.assert_called_once_with(Tag(f'IOC - {ioc_file_path}', 'ioc_list.txt'), {'ipaddr':['127.0.0.1']}, {})
 
 
-def test_ioc_file_with_base_query(runner, mocker, capsys):
+def test_ioc_file_with_base_query(runner, mocker):
     """
     Verify if an IOC file is passed, it is logged and an EDR product is called
     """
@@ -226,8 +211,6 @@ def test_ioc_file_with_base_query(runner, mocker, capsys):
         with open(ioc_file_path, 'w') as deffile:
             deffile.write("127.0.0.1")
         Surveyor("cbr").survey(ioc_file=ioc_file_path, ioc_type="ipaddr", days=5, hostname="workstation1", username="admin")
-        captured = capsys.readouterr()
-        assert "Processing IOC file" in str(captured)
         mocked_func.assert_called_once()
         mocked_nested_process_search.assert_called_once_with(Tag(f'IOC - {ioc_file_path}', 'ioc_list.txt'), {'ipaddr':['127.0.0.1']}, {'days':5, 'hostname':'workstation1', 'username':'admin'})
 
@@ -279,8 +262,7 @@ def test_output_argument_filename(mocker):
 def test_mutually_exclusive_output_prefix(mocker, capsys):
     mocker.patch('products.vmware_cb_response.CbResponse._authenticate')
     Surveyor("cbr").survey(prefix='test_prefix', output='test_output.csv')
-    captured = capsys.readouterr()
-    assert "Results saved: test_output.csv" in captured.out
+    assert os.path.exists(os.path.join(os.getcwd(), "test_output.csv"))
 
 
 def test_no_file_output(mocker):
@@ -290,16 +272,14 @@ def test_no_file_output(mocker):
     assert not os.path.exists(default_output)
 
 
-def test_base_query_filters_with_query(runner, mocker, capsys):
+def test_base_query_filters_with_query(mocker):
     mocker.patch('products.vmware_cb_response.CbResponse._authenticate')
     mocked_process_search = mocker.patch('products.vmware_cb_response.CbResponse.process_search')
     Surveyor("cbr").survey(query="SELECT * FROM processes", days=5, hostname="workstation1", username="admin")
-    captured = capsys.readouterr()
-    assert "Running Custom Query: SELECT * FROM processes" in str(captured)
     mocked_process_search.assert_called_once_with(Tag('query'), {'days':5, 'hostname':'workstation1','username':'admin'}, 'SELECT * FROM processes')
 
 
-def test_sigma_rule(runner, mocker, capsys):
+def test_sigma_rule(runner, mocker):
     mocker.patch('products.vmware_cb_response.CbResponse._authenticate')
     mocked_nested_process_search = mocker.patch('products.vmware_cb_response.CbResponse.nested_process_search')
     with runner.isolated_filesystem() as temp_dir:
@@ -318,12 +298,10 @@ fields:
     - CommandLine
     - ParentCommandLine""")
         Surveyor("cbr").survey(sigma_rule=sigma_file_path)
-        captured = capsys.readouterr()
-        assert "Processing sigma rules" in str(captured)
         mocked_nested_process_search.assert_called_once_with(Tag('Test sigma rule - 5fd18e43-749c-4bae-93b6-d46e1f27062e', 'Sigma Rule'), {"query":["process_name:curl.exe"]}, {})
 
 
-def test_sigma_rule_with_base_query(runner, mocker, capsys):
+def test_sigma_rule_with_base_query(runner, mocker):
     mocker.patch('products.vmware_cb_response.CbResponse._authenticate')
     mocked_nested_process_search = mocker.patch('products.vmware_cb_response.CbResponse.nested_process_search')
     filter_args = ['--days', '5', '--hostname', 'workstation1', '--username', 'admin']
@@ -343,12 +321,10 @@ fields:
     - CommandLine
     - ParentCommandLine""")
         Surveyor("cbr").survey(sigma_rule=sigma_file_path, days=5, hostname="workstation1", username="admin")
-        captured = capsys.readouterr()
-        assert "Processing sigma rules" in str(captured)
         mocked_nested_process_search.assert_called_once_with(Tag('Test sigma rule - 5fd18e43-749c-4bae-93b6-d46e1f27062e', 'Sigma Rule'), {"query":["process_name:curl.exe"]}, {'username':'admin', 'hostname':'workstation1','days':5 })
 
 
-def test_sigma_dir(runner, mocker, capsys):
+def test_sigma_dir(runner, mocker):
     mocker.patch('products.vmware_cb_response.CbResponse._authenticate')
     mocked_nested_process_search = mocker.patch('products.vmware_cb_response.CbResponse.nested_process_search')
     with runner.isolated_filesystem() as temp_dir:
@@ -382,14 +358,12 @@ fields:
     - CommandLine
     - ParentCommandLine""")
         Surveyor("cbr").survey(sigma_dir=temp_dir)
-        captured = capsys.readouterr()
         expected_calls = [mocker.call(Tag('Test sigma rule - 5fd18e43-749c-4bae-93b6-d46e1f27062e', 'Sigma Rule'), {"query":["process_name:curl.exe"]}, {}),
                           mocker.call(Tag('Test sigma rule 2 - 15ecb82d-b7c0-4e53-9bf3-deedb4c9908c', 'Sigma Rule'), {"query":["process_name:powershell.exe"]}, {})]
-        assert "Processing sigma rules" in str(captured)
         mocked_nested_process_search.assert_has_calls(expected_calls, any_order=True)
 
 
-def test_sigma_dir_with_base_query(runner, mocker, capsys):
+def test_sigma_dir_with_base_query(runner, mocker):
     mocker.patch('products.vmware_cb_response.CbResponse._authenticate')
     mocked_nested_process_search = mocker.patch('products.vmware_cb_response.CbResponse.nested_process_search')
     filter_args = ['--days', '5', '--hostname', 'workstation1', '--username', 'admin']
@@ -426,6 +400,4 @@ fields:
         Surveyor("cbr").survey(sigma_dir=temp_dir, days=5, hostname="workstation1", username="admin")
         expected_calls = [mocker.call(Tag('Test sigma rule - 5fd18e43-749c-4bae-93b6-d46e1f27062e', 'Sigma Rule'), {"query":["process_name:curl.exe"]}, {'username':'admin', 'hostname':'workstation1','days':5 }),
                           mocker.call(Tag('Test sigma rule 2 - 15ecb82d-b7c0-4e53-9bf3-deedb4c9908c', 'Sigma Rule'), {"query":["process_name:powershell.exe"]}, {'username':'admin', 'hostname':'workstation1','days':5 })]
-        captured = capsys.readouterr()
-        assert "Processing sigma rules" in str(captured)
         mocked_nested_process_search.assert_has_calls(expected_calls, any_order=True)

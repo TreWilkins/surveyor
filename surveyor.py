@@ -12,46 +12,15 @@ import logging
 import os
 from typing import Optional, Any, Union, List
 
-from tqdm import tqdm
-
 from common import Tag, Result, sigma_translation
-from help import log_echo
 from load import get_product_instance
 
 SUPPORTED_PRODUCTS = ['cbr', 'cbc', 'dfe', 'cortex', 's1']
 LOG_FORMAT = '[%(asctime)s] [%(levelname)-8s] [%(name)-36s] [%(filename)-20s:%(lineno)-4s] %(message)s'
 
-def _write_results(output: Optional[Any], results: list[Result], program: str, source: str,
-                   tag: Tag, log: logging.Logger, use_tqdm: bool = False) -> Union[None, list]:
-    """
-    Helper function for writing search results to CSV or collecting them in a list for return.
-    """
-    collected = []
-    if output:
-        if isinstance(tag, tuple):
-            tag = tag[0]
-
-        if len(results) > 0:
-            log_echo(f"\033[92m-->{tag.tag}: {len(results)} results \033[0m", log, use_tqdm=use_tqdm)
-        else:
-            log_echo(f"-->{tag.tag}: {len(results)} results", log, use_tqdm=use_tqdm)
-
-    for result in results:
-        row = [result.hostname, result.username, result.path, result.command_line, program, source]
-
-        if output:
-            if result.other_data:
-                row.extend(result.other_data)
-
-            output.writerow(row)
-        else:
-            collected.append(row)
-
-    if not output:
-        return collected
-
 class Surveyor():
     product_args:dict = {}
+    log:logging.Logger = None
 
     def __init__(self, product_str:str,
                  creds_file:Optional[str] = None, 
@@ -211,7 +180,7 @@ class Surveyor():
 
         collected_results = []
         # instantiate a logger
-        log = logging.getLogger('surveyor')
+        self.log = logging.getLogger('surveyor')
         logging.debug(f'Product: {product_str}')
 
         # configure logging
@@ -235,14 +204,11 @@ class Surveyor():
         if limit:
             kwargs['limit'] = str(limit)
 
-
-        kwargs['tqdm_echo'] = str(not no_progress)
-
         # instantiate a product class instance based on the product string
         try:
             product = get_product_instance(product_str, **kwargs)
         except ValueError as e:
-            log.exception(e)
+            self.log.exception(e)
             raise Exception(str(e))
 
         # placeholder for definition files if --defdir or --deffile is selected
@@ -277,7 +243,7 @@ class Surveyor():
         if not no_file:
             # determine output file name
             if output and prefix:
-                log.debug("Output arg takes precendence so prefix arg will be ignored")
+                self.log.debug("Output arg takes precendence so prefix arg will be ignored")
             if output:
                 file_name = output
             elif prefix:
@@ -299,11 +265,11 @@ class Surveyor():
         try:
             if query:
                 # if a query is specified run it directly
-                log_echo(f"Running Custom Query: {query}", log)
+                self.log.info(f"Running Custom Query: {query}")
                 product.process_search(Tag('query'), base_query, query)
 
                 for tag, results in product.get_results().items():
-                    r = _write_results(writer, results, query, "query", tag, log)
+                    r = self._write_results(writer, results, query, "query", tag)
                     if r: collected_results.extend(r)
             # test if deffile exists
             # deffile can be resolved from 'definitions' folder without needing to specify path or extension
@@ -314,7 +280,7 @@ class Surveyor():
                         repo_deffile = repo_deffile + '.json'
 
                     if os.path.isfile(repo_deffile):
-                        log.debug(f'Using repo definition file {repo_deffile}')
+                        self.log.debug(f'Using repo definition file {repo_deffile}')
                         def_file = repo_deffile
                     else:
                         raise Exception("The deffile doesn't exist. Please try again.")
@@ -346,18 +312,18 @@ class Surveyor():
                 with open(ioc_file) as f:
                     basename = os.path.basename(ioc_file)
                     data = f.readlines()
-                    log_echo(f"Processing IOC file: {ioc_file}", log)
+                    self.log.info(f"Processing IOC file: {ioc_file}")
 
                     ioc_list = [x.strip() for x in data]
 
                     product.nested_process_search(Tag(f"IOC - {ioc_file}", data=basename), {ioc_type: ioc_list}, base_query)
 
                     for tag, results in product.get_results().items():
-                        r = _write_results(writer, results, ioc_file, 'ioc', tag, log)
+                        r = self._write_results(writer, results, ioc_file, 'ioc', tag)
                         if r: collected_results.extend(r)
             # run search against definition files and write to csv
             if def_file is not None or def_dir is not None:
-                for definitions in tqdm(definition_files, desc='Processing definition files', disable=no_progress):
+                for definitions in definition_files:
                     basename = os.path.basename(definitions)
                     source = os.path.splitext(basename)[0]
 
@@ -369,8 +335,7 @@ class Surveyor():
                             if product.has_results():
                                 # write results as they become available
                                 for tag, nested_results in product.get_results(final_call=False).items():
-                                    r = _write_results(writer, nested_results, program, str(tag.data), tag, log,
-                                                use_tqdm=True)
+                                    r = self._write_results(writer, nested_results, program, str(tag.data), tag)
                                     if r: collected_results.extend(r)
 
                                 # ensure results are only written once
@@ -378,7 +343,7 @@ class Surveyor():
 
                 # write any remaining results
                 for tag, nested_results in product.get_results().items():
-                    r = _write_results(writer, nested_results, tag.tag, str(tag.data), tag, log)
+                    r = self._write_results(writer, nested_results, tag.tag, str(tag.data), tag)
                     if r: collected_results.extend(r)
 
             # if there's sigma rules to be processed
@@ -386,8 +351,8 @@ class Surveyor():
                 pq_check = True if 'pq' in self.product_args and self.product_args['pq'] else False
                 translated_rules = sigma_translation(product_str, sigma_rules, pq_check)
                 if len(translated_rules['queries']) != len(sigma_rules):
-                    log.warning(f"Only {len(translated_rules['queries'])} out of {len(sigma_rules)} were able to be translated.")
-                for rule in tqdm(translated_rules['queries'], desc="Processing sigma rules", disable=no_progress):
+                    self.log.warning(f"Only {len(translated_rules['queries'])} out of {len(sigma_rules)} were able to be translated.")
+                for rule in translated_rules['queries']:
                     program = f"{rule['title']} - {rule['id']}"
                     source = 'Sigma Rule'
 
@@ -396,8 +361,7 @@ class Surveyor():
                     if product.has_results():
                         # write results as they become available
                         for tag, nested_results in product.get_results(final_call=False).items():
-                            r = _write_results(writer, nested_results, program, str(tag.data), tag, log,
-                                        use_tqdm=True)
+                            r = self._write_results(writer, nested_results, program, str(tag.data), tag)
                             if r: collected_results.extend(r)
 
                         # ensure results are only written once
@@ -405,20 +369,48 @@ class Surveyor():
 
                 # write any remaining results
                 for tag, nested_results in product.get_results().items():
-                    r = _write_results(writer, nested_results, tag.tag, str(tag.data), tag, log)
+                    r = self._write_results(writer, nested_results, tag.tag, str(tag.data), tag)
                     if r: collected_results.extend(r)
 
             if output_file:
-                log_echo(f"\033[95mResults saved: {output_file.name}\033[0m", log)
+                self.log.info(f"\033[95mResults saved: {output_file.name}\033[0m")
             elif no_file:
                 if len(collected_results) > 1:
-                    log_echo(f"\033[92m-->{len(collected_results)-1} results collected\033[0m", log)
+                    self.log.info(f"\033[92m-->{len(collected_results)-1} results collected\033[0m")
                     return collected_results
         except KeyboardInterrupt:
-            log_echo("Caught CTRL-C. Exiting...", log)
+            self.log.error("Caught CTRL-C. Exiting...")
         except Exception as e:
-            log_echo(f'Caught {type(e).__name__} (see log for details): {e}', log, logging.ERROR)
-            log.exception(e)
+            self.log.error(f'Caught {type(e).__name__} (see log for details): {e}')
         finally:
             if output_file:
                 output_file.close()
+
+    def _write_results(self, output: Optional[Any], results: list[Result], program: str, source: str,
+                   tag: Tag) -> Union[None, list]:
+        """
+        Helper function for writing search results to CSV or collecting them in a list for return.
+        """
+        collected = []
+        if output:
+            if isinstance(tag, tuple):
+                tag = tag[0]
+
+            if len(results) > 0:
+                self.log.info(f"\033[92m-->{tag.tag}: {len(results)} results \033[0m")
+            else:
+                self.log.info(f"-->{tag.tag}: {len(results)} results")
+
+        for result in results:
+            row = [result.hostname, result.username, result.path, result.command_line, program, source]
+
+            if output:
+                if result.other_data:
+                    row.extend(result.other_data)
+
+                output.writerow(row)
+            else:
+                collected.append(row)
+
+        if not output:
+            return collected
