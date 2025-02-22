@@ -8,3 +8,4 @@ pySigma>=0.10.0
 types-requests
 types-tqdm
 pytest
+pytest-mock

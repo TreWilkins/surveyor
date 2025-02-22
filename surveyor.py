@@ -16,7 +16,6 @@ from load import get_product_instance
 class Surveyor():
     product_args: dict = dict()
     log: logging.Logger = None
-    raw_data: bool = False
     results: list = list()
     supported_products: tuple = ('cbr', 'cbc', 'dfe', 'cortex', 's1')
     log_format = '[%(asctime)s] [%(levelname)-8s] [%(name)-36s] [%(filename)-20s:%(lineno)-4s] %(message)s'
@@ -142,18 +141,39 @@ class Surveyor():
                minutes: Optional[int] = None,
                username: Optional[str] = None,
                limit: Optional[int] = None,
-               ioc_file: Optional[str] = None,
+               ioc_list: Optional[list] = None,
                ioc_type: Optional[str] = None,
                query: Optional[str] = None,
-               def_dir: Optional[str] = None,
-               def_file: Optional[str] = None,
+               definitions: Optional[dict] = None,
                sigma_rule: Optional[str] = None,
-               sigma_dir: Optional[str] = None,
+               label: Optional[str] = None,
                log_dir: Optional[str] = "logs",
-               raw_data: bool = False,
-               **kwargs) -> None:
+               **kwargs) -> list:
         
-        self.raw_data = raw_data if isinstance(raw_data, bool) else False
+        '''
+        Args:
+            hostname: (str) - endpoint to search for. Default all.
+            days: (int) - number of days to look back. \
+                Default the respective product's default value.
+            minutes: (int) - number of minutes look back. \
+                Mutally exclusive of days. Default products days default value
+            username: (str) - username to search for. Default all.
+            limit: (str) -number of results to return. \
+                Default to products default value.
+            ioc_list: (list) - IoCs to search want to search for. Default None
+            query: (str) - Query to search. Default None
+            definition: (dict)- JSON `defintions` to search for.
+            sigma_rule: (str[yaml]) - str of sigma rule. Default None.
+            label: (str) - Used for definitions. sigma, and IoC searches. \
+                Use to label the output of data for easier searching. Default None
+            log_dir: (str) - Where to store logs on disk.
+        Returns:
+            list of results
+
+        
+        '''
+        
+        self.results.clear()
         
         if self.product_args.get('product') is None:
             raise Exception("product argument is required. Be sure to use setup_product_args() to set up the product arguments")
@@ -165,20 +185,11 @@ class Surveyor():
             raise Exception(f"Invalid product: {product_str}.\
                             Must be one of: {" ".join(self.supported_products)}")
 
-        if ioc_file and ioc_type is None:
+        if ioc_list and ioc_type is None:
             raise Exception("iocfile requires ioctype")
-
-        if ioc_file and not os.path.isfile(ioc_file):
-            raise Exception('Supplied iocfile is not a file')
 
         if days and minutes:
             raise Exception('days and minutes are mutually exclusive')
-
-        if sigma_rule and not os.path.isfile(sigma_rule):
-            raise Exception('Supplied sigmarule is not a file')
-
-        if sigma_dir and not os.path.isdir(sigma_dir):
-            raise Exception('Supplied sigmadir is not a directory')
 
         # instantiate a logger
         self.log = logging.getLogger('surveyor')
@@ -229,8 +240,6 @@ class Surveyor():
         # Delete all empty items in base_query
         base_query = {k:v for k,v in base_query.items() if v}
 
-        collected_results = []
-
         try:
             if query:
                 # if a query is specified run it directly
@@ -240,90 +249,43 @@ class Surveyor():
                 for tag, results in product.get_results().items():
                     self._save_results(results, query, "query", tag)
 
-            # test if deffile exists
-            # deffile can be resolved from 'definitions' folder without needing to specify path or extension
-            if def_file:
-                if not os.path.exists(def_file):
-                    repo_deffile: str = os.path.join(os.path.dirname(__file__), 'definitions', def_file)
-                    if not repo_deffile.endswith('.json'):
-                        repo_deffile = repo_deffile + '.json'
+            # run search based on IOC list
+            if ioc_list:
+                ioc_list = [x.strip() for x in ioc_list]
 
-                    if os.path.isfile(repo_deffile):
-                        self.log.debug(f'Using repo definition file {repo_deffile}')
-                        def_file = repo_deffile
-                    else:
-                        raise Exception("The deffile doesn't exist. Please try again.")
-                definition_files.append(def_file)
+                product.nested_process_search(Tag(f"IOC - {ioc_list}", data=label), {ioc_type: ioc_list}, base_query)
 
-            # add sigma_rule to list
-            if sigma_rule:
-                sigma_rules.append(sigma_rule)
-
-            # if defdir add all files to list
-            if def_dir:
-                if not os.path.exists(def_dir):
-                    raise Exception("The defdir doesn't exist. Please try again.")
-                else:
-                    for root_dir, dirs, files in os.walk(def_dir):
-                        for filename in files:
-                            if os.path.splitext(filename)[1] == '.json':
-                                definition_files.append(os.path.join(root_dir, filename))
-
-            # if sigma_dir, add all files to sigma_rules list
-            if sigma_dir:
-                for root_dir, dirs, files in os.walk(sigma_dir):
-                    for filename in files:
-                        if os.path.splitext(filename)[1] == '.yml':
-                            sigma_rules.append(os.path.join(root_dir, filename))
-
-            # run search based on IOC file
-            if ioc_file:
-                with open(ioc_file) as f:
-                    basename = os.path.basename(ioc_file)
-                    data = f.readlines()
-                    self.log.info(f"Processing IOC file: {ioc_file}")
-
-                    ioc_list = [x.strip() for x in data]
-
-                    product.nested_process_search(Tag(f"IOC - {ioc_file}", data=basename), {ioc_type: ioc_list}, base_query)
-
-                    for tag, results in product.get_results().items():
-                        self._save_results(results, ioc_file, 'ioc', tag)
+                for tag, results in product.get_results().items():
+                    self._save_results(results, str(ioc_list), 'ioc', tag)
                         
             # run search against definition files and write to csv
-            if def_file is not None or def_dir is not None:
-                for definitions in definition_files:
-                    basename = os.path.basename(definitions)
-                    source = os.path.splitext(basename)[0]
+            if definitions and isinstance(definitions, dict):
+                for program, criteria in definitions.items():
+                    product.nested_process_search(Tag(program, data=label), criteria, base_query)
 
-                    with open(definitions, 'r') as file:
-                        programs = json.load(file)
-                        for program, criteria in programs.items():
-                            product.nested_process_search(Tag(program, data=source), criteria, base_query)
-
-                            if product.has_results():
-                                # write results as they become available
-                                for tag, nested_results in product.get_results(final_call=False).items():
-                                    self._save_results(nested_results, program, str(tag.data), tag)
-                                    
-                                # ensure results are only written once
-                                product.clear_results()
+                    if product.has_results():
+                        # write results as they become available
+                        for tag, nested_results in product.get_results(final_call=False).items():
+                            self._save_results(nested_results, program, str(tag.data), tag)
+                            
+                        # ensure results are only written once
+                        product.clear_results()
 
                 # write any remaining results
                 for tag, nested_results in product.get_results().items():
                     self._save_results(nested_results, tag.tag, str(tag.data), tag)
                     
-            # if there's sigma rules to be processed
-            if len(sigma_rules) > 0:
+            # if there's sigma rule to be processed
+            if sigma_rule:
                 pq_check = True if 'pq' in self.product_args and self.product_args['pq'] else False
-                translated_rules = sigma_translation(product_str, sigma_rules, pq_check)
+                translated_rules = sigma_translation(product_str, [sigma_rule], pq_check)
                 if len(translated_rules['queries']) != len(sigma_rules):
                     self.log.warning(f"Only {len(translated_rules['queries'])} out of {len(sigma_rules)} were able to be translated.")
+                
                 for rule in translated_rules['queries']:
                     program = f"{rule['title']} - {rule['id']}"
-                    source = 'Sigma Rule'
 
-                    product.nested_process_search(Tag(program, data=source), {'query': [rule['query']]}, base_query)
+                    product.nested_process_search(Tag(program, data=label), {'query': [rule['query']]}, base_query)
 
                     if product.has_results():
                         # write results as they become available
@@ -337,7 +299,7 @@ class Surveyor():
                 for tag, nested_results in product.get_results().items():
                     self._save_results(nested_results, tag.tag, str(tag.data), tag)
                     
-            return collected_results
+            return self.results
         
         except KeyboardInterrupt:
             self.log.error("Caught CTRL-C. Exiting...")
@@ -351,7 +313,6 @@ class Surveyor():
         Helper function for writing search results to list.
         """
 
-
         if isinstance(tag, tuple):
             tag = tag[0]
 
@@ -361,6 +322,6 @@ class Surveyor():
             self.log.info(f"-->{tag.tag}: {len(results)} results")
 
         for result in results:
-            row = result.__dict__ if not self.raw_data else json.loads(result.raw_data)
+            row = result.__dict__
             row.update(dict(program=program, source=source))
             self.results.append(row)
