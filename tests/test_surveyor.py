@@ -248,19 +248,19 @@ def test_dependent_ioc_args(runner):
             deffile.write("127.0.0.1")
         with pytest.raises(Exception) as e_info:
             Surveyor("cbr").survey(ioc_file=ioc_file_path)
-            assert "--iocfile requires --ioctype" in e_info
+            assert "iocfile requires ioctype" in e_info
 
 
 def test_invalid_ioc_file(runner):
     with pytest.raises(Exception) as e_info:
         Surveyor("cbr").survey(ioc_file="nonexistent.txt", ioc_type="md5")
-        assert "Supplied --iocfile is not a file" in str(e_info)
+        assert "Supplied iocfile is not a file" in str(e_info)
 
 
 def test_mutually_exclusive_days_mins():
     with pytest.raises(Exception) as e_info:
         Surveyor("cbr").survey(days=3, minutes=4)
-        assert "--days and --minutes are mutually exclusive" in str(e_info)
+        assert "days and minutes are mutually exclusive" in str(e_info)
 
 
 def test_no_file_output(mocker):
