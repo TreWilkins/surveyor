@@ -11,7 +11,7 @@ from tqdm import tqdm
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
-from typing import Optional, Tuple, Callable, Any
+from typing import Optional, Tuple, Callable, Any, Union
 import re
 
 import requests
@@ -163,7 +163,7 @@ class SentinelOne(Product):
         if len(self._site_ids) < 1 and len(self._account_ids) < 1:
             raise ValueError(f'S1 configuration invalid, specify a site_id, account_id, or account_name')
 
-    def _get_site_ids(self, site_ids, account_ids, account_names):
+    def _get_site_ids(self, site_ids: list, account_ids: list, account_names: list):
         # If either of the following were passed into surveyor, their value will take precedence and the config file will not be used.
         if not (site_ids or account_ids or account_names):
             config = configparser.ConfigParser()
@@ -654,7 +654,7 @@ class SentinelOne(Product):
                     username = event.get('src.process.user')
                     path = event.get('src.process.image.path')
                     command_line = event.get('src.process.cmdline')
-                    timestamp = event.get('src.process.startTime', event.get('timestamp'))
+                    timestamp = self.convert_time_to_iso8601(event.get('src.process.startTime', event.get('timestamp')))
                 else:
                     hostname = event.get('endpointName')
                     username = event.get('srcProcUser')
@@ -790,3 +790,16 @@ class SentinelOne(Product):
             self._process_queries()
 
         return self._results
+    
+    def convert_time_to_iso8601(self, time:str) -> Union[str,None]:
+    
+        try: 
+            timestamp_seconds = int(time) / 1000
+            # Create a datetime object from the timestamp in seconds
+            dt = datetime.fromtimestamp(timestamp_seconds, tz=timezone.utc)
+            # Format the datetime object as a string in the desired format
+            formatted_date = dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+            return formatted_date
+    
+        except Exception as e:
+            self.log.info(f'Error" {e}, for time {time}')

@@ -21,7 +21,7 @@ PARAMETER_MAPPING: dict[str, str] = {
     'regmod':'regmod_name'
 }
 
-def _convert_relative_time(relative_time) -> str:
+def _convert_relative_time(relative_time: str) -> str:
     """
     Convert a Cb Response relative time boundary (i.e., start:-1440m) to a device_timestamp:
     device_timestamp:[2019-06-02T00:00:00Z TO 2019-06-03T23:59:00Z]
@@ -122,19 +122,18 @@ class CbEnterpriseEdr(Product):
             for proc in process.where(full_query):
                 deets = proc.get_details()
                 
-                hostname = deets['device_name'] if 'device_name' in deets else 'None'
+                hostname = deets.get('device_name')
                 user = deets['process_username'][0] if 'process_username' in deets else 'None'
-                proc_name = deets['process_name'] if 'process_name' in deets else 'None'
+                proc_name = deets.get('process_name')
                 cmdline = deets['process_cmdline'][0] if 'process_cmdline' in deets else 'None'
-                ts = deets['device_timestamp'] if 'device_timestamp' in deets else 'None'
-                proc_guid = deets['process_guid'] if 'process_guid' in deets else 'None'
+                timestamp = deets.get('process_start_time', deets.get('device_timestamp'))
                 
                 result = Result(
                     hostname=hostname, 
                     username=user, 
                     path=proc_name, 
                     command_line=cmdline, 
-                    timestamp = ts,
+                    timestamp = timestamp,
                     raw_data=(json.dumps(deets))
                     )
                 

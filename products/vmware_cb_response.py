@@ -1,7 +1,9 @@
 from cbapi.response import CbEnterpriseResponseAPI # type: ignore
 from cbapi.response.models import Process # type: ignore
 import json
-from common import Product, Tag, Result, Optional
+from common import Product, Tag, Result
+from datetime import datetime
+from typing import Optional
 
 
 class CbResponse(Product):
@@ -12,7 +14,6 @@ class CbResponse(Product):
     _sensor_group: Optional[list[str]] = None
     _conn: CbEnterpriseResponseAPI  # CB Response API
     _limit: int = -1
-    _raw: bool = False
 
     def __init__(self, **kwargs):
         self.profile = kwargs['profile'] if 'profile' in kwargs else 'default'
@@ -20,7 +21,6 @@ class CbResponse(Product):
         self.token = kwargs['token'] if 'token' in kwargs else None
         self._sensor_group = kwargs['sensor_group'] if 'sensor_group' in kwargs else None
         self._limit = int(kwargs['limit']) if 'limit' in kwargs else self._limit
-        self._raw = kwargs['raw'] if 'raw' in kwargs else self._raw
 
         super().__init__(self.product, **kwargs)
 
@@ -72,17 +72,10 @@ class CbResponse(Product):
                     username=proc.username.lower(), 
                     path=proc.path, 
                     command_line=proc.cmdline, 
-                    timestamp = proc.start, 
+                    timestamp = self.cbr_convertime_iso8601(proc.start), 
                     raw_data=(json.dumps(proc.__dict__))
                     )
-                
-                # Raw Feature (Inactive)
-                '''
-                if self._raw:
-                    raw_results.append(proc)
-                else:
-                    results.add(result)
-                '''
+
                 results.add(result)
 
                 if self._limit > 0 and len(results)+1 > self._limit:
@@ -91,13 +84,6 @@ class CbResponse(Product):
         except KeyboardInterrupt:
             self.log.info("Caught CTRL-C. Returning what we have . . .")
         
-        # Raw Feature (Inactive)
-        '''
-        if self._raw: 
-            self._add_results(list(raw_results), tag)
-        else:
-            self._add_results(list(results), tag)
-        '''
         self._add_results(list(results), tag)
 
     def nested_process_search(self, tag: Tag, criteria: dict, base_query: dict) -> None:
@@ -142,3 +128,17 @@ class CbResponse(Product):
             self.log.exception("Caught CTRL-C. Returning what we have . . .")
 
         self._add_results(list(results), tag)
+
+    def cbr_convertime_iso8601(self, time:str) -> str:
+        time = str(time)
+        
+        try:
+            # Convert the input string to a datetime object
+            time = datetime.strptime(time, "%Y-%m-%d %H:%M:%S.%f")
+        except ValueError:
+            try:
+                time = datetime.strptime(time, "%Y-%m-%d %H:%M:%S")
+            except ValueError:
+                return time
+        
+        return time

@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 import secrets
 import hashlib
 import string
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Union
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -317,7 +317,7 @@ class CortexXDR(Product):
                         event['actor_process_image_path']
                     commandline = event['action_process_command_line'] if 'action_process_command_line' in event else \
                         event['actor_process_command_line']
-                    timestamp = event['_time']
+                    timestamp = self.cortex_convertime_iso8601(event['_time'])
 
                     result = Result(
                         hostname=hostname, 
@@ -340,3 +340,16 @@ class CortexXDR(Product):
             self._process_queries()
 
         return self._results
+    
+    def cortex_convertime_iso8601(self, time:str) -> Union[str, None]:
+    
+        try: 
+            timestamp_seconds = int(time) / 1000
+            # Create a datetime object from the timestamp in seconds
+            dt = datetime.fromtimestamp(timestamp_seconds, tz=timezone.utc)
+            # Format the datetime object as a string in the desired format
+            formatted_date = dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+            return formatted_date
+    
+        except Exception as e:
+            self.log.info(f'Error" {e}, for time {time}')

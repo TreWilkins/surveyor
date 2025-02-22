@@ -48,8 +48,7 @@ class DefenderForEndpoints(Product):
     _tenantId: Optional[str] = None 
     _appId: Optional[str] = None
     _appSecret: Optional[str] = None
-    _raw: bool = False
-
+    
     def __init__(self, **kwargs):
 
         self.profile = kwargs['profile'] if 'profile' in kwargs else 'default'
@@ -58,7 +57,6 @@ class DefenderForEndpoints(Product):
         self._tenantId = kwargs['tenantId'] if 'tenantId' in kwargs else None
         self._appId = kwargs['appId'] if 'appId' in kwargs else None
         self._appSecret = kwargs['appSecret'] if 'appSecret' in kwargs else None
-        self._raw = kwargs['raw'] if 'raw' in kwargs else self._raw
 
         if 100000 >= int(kwargs.get('limit', -1)) > self._limit:
             self._limit = int(kwargs['limit'])
@@ -123,11 +121,6 @@ class DefenderForEndpoints(Product):
             if response.status_code == 200:
                 for res in response.json()["Results"]:
                     
-                    # Raw Feature (Inactive)
-                    '''
-                    if self._raw:
-                        raw_results.append(res)
-                    '''
                     hostname = res['DeviceName'] if 'DeviceName' in res else 'Unknown'
                     
                     if 'AccountName' in res or 'InitiatingProcessAccountName' in res:
@@ -162,12 +155,7 @@ class DefenderForEndpoints(Product):
             self.log.exception("Caught CTRL-C. Rerun surveyor")
         except Exception as e:
             self.log.exception(e)
-        
-        # Raw Feature (Inactive)
-        '''
-        if self._raw:
-            return raw_results
-        '''
+
         return list(results)
 
     def _get_default_header(self) -> dict[str, str]:

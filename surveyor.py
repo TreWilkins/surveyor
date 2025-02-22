@@ -2,8 +2,7 @@ import sys
 
 # ensure Python version is compatible (Python v2 will always error out)
 if sys.version_info.major == 3 and sys.version_info.minor < 10:
-    print(f'Python 3.10+ is required to run Surveyor (current: {sys.version_info.major}.{sys.version_info.minor})')
-    exit(1)
+    raise Exception(f'Python 3.10+ is required to run Surveyor (current: {sys.version_info.major}.{sys.version_info.minor})')
 
 import json
 import logging
@@ -115,8 +114,7 @@ class Surveyor():
                     if cortex_auth_type.lower() in ['standard', 'advanced']:
                         args['auth_type'] = cortex_auth_type
                     else:
-                        print("Invalid auth_type specified. Defaulting to advanced")
-                        args['auth_type'] = 'advanced'    
+                        raise ValueError("Invalid auth_type specified for Cortex, please provide either 'standard' or 'advanced'")
                 if not any([args.get('creds_file'), (args.get('api_key') and args.get('url') and args.get('api_key_id'))]):
                     raise Exception("Cortex requires either a creds_file or api_key, api_key_id, and url to be specified")
             case 's1':
@@ -240,7 +238,7 @@ class Surveyor():
                 product.process_search(Tag('query'), base_query, query)
 
                 for tag, results in product.get_results().items():
-                    self._write_results(results, query, "query", tag)
+                    self._save_results(results, query, "query", tag)
 
             # test if deffile exists
             # deffile can be resolved from 'definitions' folder without needing to specify path or extension
@@ -290,7 +288,7 @@ class Surveyor():
                     product.nested_process_search(Tag(f"IOC - {ioc_file}", data=basename), {ioc_type: ioc_list}, base_query)
 
                     for tag, results in product.get_results().items():
-                        self._write_results(results, ioc_file, 'ioc', tag)
+                        self._save_results(results, ioc_file, 'ioc', tag)
                         
             # run search against definition files and write to csv
             if def_file is not None or def_dir is not None:
@@ -306,14 +304,14 @@ class Surveyor():
                             if product.has_results():
                                 # write results as they become available
                                 for tag, nested_results in product.get_results(final_call=False).items():
-                                    self._write_results(nested_results, program, str(tag.data), tag)
+                                    self._save_results(nested_results, program, str(tag.data), tag)
                                     
                                 # ensure results are only written once
                                 product.clear_results()
 
                 # write any remaining results
                 for tag, nested_results in product.get_results().items():
-                    self._write_results(nested_results, tag.tag, str(tag.data), tag)
+                    self._save_results(nested_results, tag.tag, str(tag.data), tag)
                     
             # if there's sigma rules to be processed
             if len(sigma_rules) > 0:
@@ -330,14 +328,14 @@ class Surveyor():
                     if product.has_results():
                         # write results as they become available
                         for tag, nested_results in product.get_results(final_call=False).items():
-                            self._write_results(nested_results, program, str(tag.data), tag)
+                            self._save_results(nested_results, program, str(tag.data), tag)
                         
                         # ensure results are only written once
                         product.clear_results()
 
                 # write any remaining results
                 for tag, nested_results in product.get_results().items():
-                    self._write_results(nested_results, tag.tag, str(tag.data), tag)
+                    self._save_results(nested_results, tag.tag, str(tag.data), tag)
                     
             return collected_results
         
@@ -347,7 +345,7 @@ class Surveyor():
             self.log.error(f'Caught {type(e).__name__} (see log for details): {e}')
 
 
-    def _write_results(self, results: list[Result], program: str, source: str,
+    def _save_results(self, results: list[Result], program: str, source: str,
                    tag: Tag) -> Union[None, list]:
         """
         Helper function for writing search results to list.
