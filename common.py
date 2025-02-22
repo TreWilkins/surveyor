@@ -22,6 +22,7 @@ class Result:
     path: str
     command_line: str
     other_data: Optional[Tuple] = None  # use tuples as they are immutable
+    raw_data: Optional[Tuple] = None
 
 
 class Product(ABC):

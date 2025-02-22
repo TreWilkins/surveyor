@@ -1,6 +1,5 @@
 import configparser
 import json
-import logging
 import os
 import time
 from dataclasses import dataclass
@@ -329,7 +328,7 @@ class CortexXDR(Product):
                         result = Result(hostname, username, path, commandline, additional_data)
                         self._results[tag].append(result)
                     '''
-                    result = Result(hostname, username, path, commandline, additional_data)
+                    result = Result(hostname, username, path, commandline, additional_data, (event))
                     self._results[tag].append(result)
                         
         self._queries.clear()

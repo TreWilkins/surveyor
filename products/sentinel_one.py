@@ -1,7 +1,6 @@
 import concurrent.futures
 import configparser
 import json
-import logging
 import os
 import time
 from concurrent.futures import Future
@@ -685,7 +684,7 @@ class SentinelOne(Product):
                     command_line = event['srcProcCmdLine']
                     additional_data = (event['eventTime'], event['siteId'], event['siteName'], srcprocstorylineid, srcprocdisplayname, scrprocparentimagepath, tgtprocdisplayname, tgtprocimagepath, tgtfilepath, tgtfilesha1, tgtfilesha256, url, srcip, dstip, dnsrequest, event['eventType'])
 
-                result = Result(hostname, username, path, command_line, additional_data)
+                result = Result(hostname, username, path, command_line, additional_data, (event))
                 
                 # Raw Feature (Inactive)
                 '''

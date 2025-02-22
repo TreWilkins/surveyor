@@ -1,8 +1,6 @@
-import logging
-
 from cbapi.response import CbEnterpriseResponseAPI # type: ignore
 from cbapi.response.models import Process # type: ignore
-
+import json
 from common import Product, Tag, Result, Optional
 
 
@@ -69,8 +67,7 @@ class CbResponse(Product):
         try:
             # noinspection PyUnresolvedReferences
             for proc in self._conn.select(Process).where(query):
-                result = Result(proc.hostname.lower(), proc.username.lower(), proc.path, proc.cmdline,
-                                (proc.start, proc.id))
+                result = Result(proc.hostname.lower(), proc.username.lower(), proc.path, proc.cmdline,(proc.start, proc.id), (json.dumps(proc.__dict__)))
                 
                 # Raw Feature (Inactive)
                 '''
@@ -119,8 +116,7 @@ class CbResponse(Product):
                 self.log.debug(f'Query: {query}')
                 # noinspection PyUnresolvedReferences
                 for proc in self._conn.select(Process).where(query):
-                    result = Result(proc.hostname.lower(), proc.username.lower(), proc.path, proc.cmdline,
-                                    (proc.start,))
+                    result = Result(proc.hostname.lower(), proc.username.lower(), proc.path, proc.cmdline,(proc.start,), (json.dumps(proc.__dict__)))
                     results.add(result)
                     if self._limit > 0 and len(results)+1 > self._limit:
                         break

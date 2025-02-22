@@ -1,6 +1,5 @@
 from datetime import datetime, timezone, timedelta
-import logging
-
+import json
 from typing import Generator, Optional
 import cbc_sdk.errors # type: ignore
 from cbc_sdk.rest_api import CBCloudAPI # type: ignore
@@ -132,7 +131,7 @@ class CbEnterpriseEdr(Product):
                 ts = deets['device_timestamp'] if 'device_timestamp' in deets else 'None'
                 proc_guid = deets['process_guid'] if 'process_guid' in deets else 'None'
                 
-                result = Result(hostname, user, proc_name, cmdline, (ts, proc_guid,))
+                result = Result(hostname, user, proc_name, cmdline, (ts, proc_guid,), (json.dumps(deets)))
                 
                 # Raw Feature (Inactive)
                 '''

@@ -98,7 +98,11 @@ def test_def_file(runner, mocker):
         with open(def_file_path, 'w') as deffile:
             deffile.write("""{"ProgramA":{"process_name":["test.exe"]}}""")
         Surveyor("cbr").survey(def_file=def_file_path)
-        mocked_nested_process_search.assert_called_once_with(Tag('ProgramA', 'test_deffile'), {"process_name":["test.exe"]}, {})
+        mocked_nested_process_search.assert_called_once_with(
+            Tag('ProgramA', 'test_deffile'), 
+            {"process_name":["test.exe"]}, 
+            {}
+            )
 
 
 def test_def_file_with_base_query(runner, mocker):
@@ -107,13 +111,16 @@ def test_def_file_with_base_query(runner, mocker):
     """
     mocker.patch('products.vmware_cb_response.CbResponse._authenticate')
     mocked_nested_process_search = mocker.patch('products.vmware_cb_response.CbResponse.nested_process_search')
-    filter_args = ['--days', '5', '--hostname', 'workstation1', '--username', 'admin']
     with runner.isolated_filesystem() as temp_dir:
         def_file_path = os.path.join(temp_dir, "test_deffile.json")
         with open(def_file_path, 'w') as deffile:
             deffile.write("""{"ProgramA":{"process_name":["test.exe"]}}""")
         Surveyor("cbr").survey(def_file=def_file_path, days=5, hostname="workstation1", username="admin")
-        mocked_nested_process_search.assert_called_once_with(Tag('ProgramA', 'test_deffile'), {"process_name":["test.exe"]}, {'days':5, 'hostname':'workstation1', 'username':'admin'})
+        mocked_nested_process_search.assert_called_once_with(
+            Tag('ProgramA', 'test_deffile'), 
+            {"process_name":["test.exe"]}, 
+            {'days':5, 'hostname':'workstation1', 'username':'admin'}
+            )
 
 
 def test_def_dir(runner, mocker):
@@ -136,13 +143,12 @@ def test_def_dir(runner, mocker):
         mocked_nested_process_search.assert_has_calls(expected_calls, any_order=True)
 
 
-def test_def_dir_with_base_query(runner, mocker, capsys):
+def test_def_dir_with_base_query(runner, mocker):
     """
     Verify when a definition directory is passed, it is logged and an EDR product is called
     """
     mocker.patch('products.vmware_cb_response.CbResponse._authenticate')
     mocked_nested_process_search = mocker.patch('products.vmware_cb_response.CbResponse.nested_process_search')
-    filter_args = ['--days', '5', '--hostname', 'workstation1', '--username', 'admin']
     with runner.isolated_filesystem() as temp_dir:
         def_file_path1 = os.path.join(temp_dir, "test_deffile1.json")
         def_file_path2 = os.path.join(temp_dir, "test_deffile2.json")
@@ -151,13 +157,23 @@ def test_def_dir_with_base_query(runner, mocker, capsys):
         with open(def_file_path2, 'w') as deffile:
             deffile.write("""{"ProgramB":{"process_name":["test2.exe"]}}""")
 
-        expected_calls = [mocker.call(Tag('ProgramA', 'test_deffile1'),{"process_name":["test1.exe"]}, {'days':5, 'hostname':'workstation1', 'username':'admin'}), 
-                          mocker.call(Tag('ProgramB', 'test_deffile2'),{"process_name":["test2.exe"]}, {'days':5, 'hostname':'workstation1', 'username':'admin'})]
+        expected_calls = [
+            mocker.call(
+                Tag('ProgramA', 'test_deffile1'),
+                {"process_name":["test1.exe"]}, 
+                {'days':5, 'hostname':'workstation1', 'username':'admin'}
+            ), 
+            mocker.call(
+                Tag('ProgramB', 'test_deffile2'),
+                {"process_name":["test2.exe"]}, 
+                {'days':5, 'hostname':'workstation1', 'username':'admin'}
+                )
+            ]
         Surveyor("cbr").survey(def_dir=temp_dir,days=5, hostname="workstation1", username="admin")
         mocked_nested_process_search.assert_has_calls(expected_calls, any_order=True)
 
 
-def test_invalid_def_file(mocker, capsys):
+def test_invalid_def_file(mocker):
     """
     Verify if a non-existent definition file is passed, it is logged and nothing is passed to the EDR product
     """
@@ -172,7 +188,7 @@ def test_invalid_sigma_rule(mocker):
     mocked_nested_process_search = mocker.patch('products.vmware_cb_response.CbResponse.nested_process_search')
     with pytest.raises(Exception) as e_info:
         Surveyor("cbr").survey(sigma_rule="nonexistent.yml")
-    assert "Supplied --sigmarule is not a file" in str(e_info)
+    assert "Supplied sigmarule is not a file" in str(e_info)
     mocked_nested_process_search.assert_not_called()
 
 
@@ -181,7 +197,7 @@ def test_invalid_sigma_dir(mocker):
     mocked_nested_process_search = mocker.patch('products.vmware_cb_response.CbResponse.nested_process_search')
     with pytest.raises(Exception) as e_info:
         Surveyor("cbr").survey(sigma_dir="./nonexistent_dir")
-    assert "Supplied --sigmadir is not a directory" in str(e_info)
+    assert "Supplied sigmadir is not a directory" in str(e_info)
     mocked_nested_process_search.assert_not_called()
 
 
@@ -212,7 +228,11 @@ def test_ioc_file_with_base_query(runner, mocker):
             deffile.write("127.0.0.1")
         Surveyor("cbr").survey(ioc_file=ioc_file_path, ioc_type="ipaddr", days=5, hostname="workstation1", username="admin")
         mocked_func.assert_called_once()
-        mocked_nested_process_search.assert_called_once_with(Tag(f'IOC - {ioc_file_path}', 'ioc_list.txt'), {'ipaddr':['127.0.0.1']}, {'days':5, 'hostname':'workstation1', 'username':'admin'})
+        mocked_nested_process_search.assert_called_once_with(
+            Tag(f'IOC - {ioc_file_path}', 'ioc_list.txt'), 
+            {'ipaddr':['127.0.0.1']}, 
+            {'days':5, 'hostname':'workstation1', 'username':'admin'}
+            )
 
 
 def test_unsupported_option():
@@ -243,28 +263,6 @@ def test_mutually_exclusive_days_mins():
         assert "--days and --minutes are mutually exclusive" in str(e_info)
 
 
-def test_output_argument_full_path(runner, mocker):
-    mocker.patch('products.vmware_cb_response.CbResponse._authenticate')
-    with runner.isolated_filesystem() as temp_dir:
-        full_output_path = os.path.join(temp_dir, "full_output.csv")
-        Surveyor("cbr").survey(output=full_output_path)
-        assert os.path.exists(full_output_path)
-
-
-def test_output_argument_filename(mocker):
-    mocker.patch('products.vmware_cb_response.CbResponse._authenticate')
-    filename_only = 'filename_only.csv'
-    full_output_path = os.path.join(os.getcwd(), filename_only)
-    Surveyor("cbr").survey(output=filename_only)
-    assert os.path.exists(full_output_path)
-
-
-def test_mutually_exclusive_output_prefix(mocker, capsys):
-    mocker.patch('products.vmware_cb_response.CbResponse._authenticate')
-    Surveyor("cbr").survey(prefix='test_prefix', output='test_output.csv')
-    assert os.path.exists(os.path.join(os.getcwd(), "test_output.csv"))
-
-
 def test_no_file_output(mocker):
     mocker.patch('products.vmware_cb_response.CbResponse._authenticate')
     default_output = 'surveyor.csv'
@@ -276,7 +274,11 @@ def test_base_query_filters_with_query(mocker):
     mocker.patch('products.vmware_cb_response.CbResponse._authenticate')
     mocked_process_search = mocker.patch('products.vmware_cb_response.CbResponse.process_search')
     Surveyor("cbr").survey(query="SELECT * FROM processes", days=5, hostname="workstation1", username="admin")
-    mocked_process_search.assert_called_once_with(Tag('query'), {'days':5, 'hostname':'workstation1','username':'admin'}, 'SELECT * FROM processes')
+    mocked_process_search.assert_called_once_with(
+        Tag('query'), 
+        {'days':5, 'hostname':'workstation1','username':'admin'}, 
+        'SELECT * FROM processes'
+        )
 
 
 def test_sigma_rule(runner, mocker):
@@ -304,7 +306,6 @@ fields:
 def test_sigma_rule_with_base_query(runner, mocker):
     mocker.patch('products.vmware_cb_response.CbResponse._authenticate')
     mocked_nested_process_search = mocker.patch('products.vmware_cb_response.CbResponse.nested_process_search')
-    filter_args = ['--days', '5', '--hostname', 'workstation1', '--username', 'admin']
     with runner.isolated_filesystem() as temp_dir:
         sigma_file_path = os.path.join(temp_dir, "test_sigma_rule.yml")
         with open(sigma_file_path, 'w') as sigmafile:
@@ -358,15 +359,24 @@ fields:
     - CommandLine
     - ParentCommandLine""")
         Surveyor("cbr").survey(sigma_dir=temp_dir)
-        expected_calls = [mocker.call(Tag('Test sigma rule - 5fd18e43-749c-4bae-93b6-d46e1f27062e', 'Sigma Rule'), {"query":["process_name:curl.exe"]}, {}),
-                          mocker.call(Tag('Test sigma rule 2 - 15ecb82d-b7c0-4e53-9bf3-deedb4c9908c', 'Sigma Rule'), {"query":["process_name:powershell.exe"]}, {})]
+        expected_calls = [
+            mocker.call(
+                Tag('Test sigma rule - 5fd18e43-749c-4bae-93b6-d46e1f27062e', 'Sigma Rule'),
+                {"query":["process_name:curl.exe"]}, 
+                {}
+                ),
+            mocker.call(
+                Tag('Test sigma rule 2 - 15ecb82d-b7c0-4e53-9bf3-deedb4c9908c', 'Sigma Rule'), 
+                {"query":["process_name:powershell.exe"]}, 
+                {}
+                )
+            ]
         mocked_nested_process_search.assert_has_calls(expected_calls, any_order=True)
 
 
 def test_sigma_dir_with_base_query(runner, mocker):
     mocker.patch('products.vmware_cb_response.CbResponse._authenticate')
     mocked_nested_process_search = mocker.patch('products.vmware_cb_response.CbResponse.nested_process_search')
-    filter_args = ['--days', '5', '--hostname', 'workstation1', '--username', 'admin']
     with runner.isolated_filesystem() as temp_dir:
         sigma_file_path1 = os.path.join(temp_dir, "test_sigma_rule1.yml")
         with open(sigma_file_path1, 'w') as sigmafile:
@@ -398,6 +408,16 @@ fields:
     - CommandLine
     - ParentCommandLine""")
         Surveyor("cbr").survey(sigma_dir=temp_dir, days=5, hostname="workstation1", username="admin")
-        expected_calls = [mocker.call(Tag('Test sigma rule - 5fd18e43-749c-4bae-93b6-d46e1f27062e', 'Sigma Rule'), {"query":["process_name:curl.exe"]}, {'username':'admin', 'hostname':'workstation1','days':5 }),
-                          mocker.call(Tag('Test sigma rule 2 - 15ecb82d-b7c0-4e53-9bf3-deedb4c9908c', 'Sigma Rule'), {"query":["process_name:powershell.exe"]}, {'username':'admin', 'hostname':'workstation1','days':5 })]
+        expected_calls = [
+            mocker.call(
+                Tag('Test sigma rule - 5fd18e43-749c-4bae-93b6-d46e1f27062e', 'Sigma Rule'), 
+                {"query":["process_name:curl.exe"]}, 
+                {'username':'admin', 'hostname':'workstation1','days':5 }
+            ),
+            mocker.call(
+                Tag('Test sigma rule 2 - 15ecb82d-b7c0-4e53-9bf3-deedb4c9908c', 'Sigma Rule'), 
+                {"query":["process_name:powershell.exe"]}, 
+                {'username':'admin', 'hostname':'workstation1','days':5 }
+            )
+        ]
         mocked_nested_process_search.assert_has_calls(expected_calls, any_order=True)

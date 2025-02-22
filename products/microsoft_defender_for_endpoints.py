@@ -1,6 +1,5 @@
 import configparser
 import json
-import logging
 import os
 
 import requests
@@ -148,8 +147,7 @@ class DefenderForEndpoints(Product):
 
                     timestamp = res['Timestamp'] if 'Timestamp' in res else 'Unknown'
 
-                    result = Result(hostname, username, proc_name, cmdline,
-                                    (timestamp,))
+                    result = Result(hostname, username, proc_name, cmdline,(timestamp,), (res))
                     results.add(result)
             else:
                 self.log.error(f"Received status code: {response.status_code} (message: {response.json()})")
