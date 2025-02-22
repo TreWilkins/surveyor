@@ -88,8 +88,7 @@ class SentinelOne(Product):
     _queries: dict[Tag, list[Query]] = dict()
     _last_request: float = 0.0
     _query_base: Optional[str] = None
-    _pq: bool  # Run queries using PowerQuery instead of DeepVisibility
-    _raw: bool = False
+    _pq: bool  # Run queries using PowerQuery instead of Deep Visibility
 
     def __init__(self, pq: bool = False, **kwargs):
   
@@ -100,7 +99,6 @@ class SentinelOne(Product):
         self._url = kwargs['url'] if 'url' in kwargs else ''
         self._token = kwargs['token'] if 'token' in kwargs else None
         self.creds_file = kwargs['creds_file'] if 'creds_file' in kwargs else None
-        self._raw = kwargs['raw'] if 'raw' in kwargs else self._raw
         limit = (kwargs['limit']) if 'limit' in kwargs else 0
         self._pq = pq # This supports command-line options, will default to Power Query
 
@@ -627,7 +625,9 @@ class SentinelOne(Product):
             # start deep visibility API call
             url = '/web/api/v2.1/dv/events/pq' if self._pq else '/web/api/v2.1/dv/init-query'
             query_response = self._session.post(self._build_url(url),
-                                                headers=self._get_default_header(), data=json.dumps(params))
+                                                headers=self._get_default_header(),
+                                                data=json.dumps(params)
+                                                )
             self._last_request = time.time()
 
             body = query_response.json()
@@ -641,7 +641,8 @@ class SentinelOne(Product):
             self.log.info(f'Query ID is {query_id}')
 
             if self._pq and body['data']['status'] == 'FINISHED': # If using PQ, the results can be returned immediately
-                events = body['data']['data']
+                event_header = [item['name'] for item in body['data']['columns']]
+                events = [dict(zip(event_header, event)) for event in body['data']['data'] if event]
             else:
                 events = self._get_dv_events(query_id, p_bar_needed=p_bar_needed, cancel_event=cancel_event)
             self.log.debug(f'Got {len(events)} events')
@@ -649,50 +650,26 @@ class SentinelOne(Product):
             self._results[merged_tag] = list()
             for event in events:
                 if self._pq:
-                    hostname = event[0]
-                    username = event[1]
-                    path = event[2]
-                    srcprocdisplayname = event[8]
-                    tgtprocdisplayname = event[9]
-                    tgtfilepath = event[10]
-                    tgtfilesha1 = event[11]
-                    tgtfilesha256 = event[12]
-                    scrprocparentimagepath = event[13]
-                    tgtprocimagepath = event[14]
-                    url = event[15]
-                    srcip = event[16]
-                    dstip = event[17]
-                    dnsrequest = event[18]
-                    command_line = event[3]
-                    additional_data = (event[4], event[5], event[6], event[7], srcprocdisplayname, scrprocparentimagepath, tgtprocdisplayname, tgtprocimagepath, tgtfilepath, tgtfilesha1, tgtfilesha256, url, srcip, dstip, dnsrequest, event[19])
+                    hostname = event.get('endpoint.name')
+                    username = event.get('src.process.user')
+                    path = event.get('src.process.image.path')
+                    command_line = event.get('src.process.cmdline')
+                    timestamp = event.get('src.process.startTime', event.get('timestamp'))
                 else:
-                    hostname = event['endpointName']
-                    username = event['srcProcUser']
-                    path = event['srcProcImagePath']
-                    srcprocstorylineid = event['srcProcStorylineId'] if 'srcProcStorylineId' in event else 'None'
-                    srcprocdisplayname = event['srcProcDisplayName'] if 'srcProcDisplayName' in event else 'None'
-                    tgtprocdisplayname = event['tgtProcDisplayName'] if 'tgtProcDisplayName' in event else 'None'
-                    tgtfilepath = event['tgtFilePath'] if 'tgtFilePath' in event else 'None'
-                    tgtfilesha1 = event['fileSha1'] if 'fileSha1' in event else 'None'
-                    tgtfilesha256 = event['fileSha256'] if 'fileSha256' in event else 'None'
-                    scrprocparentimagepath = event['srcProcParentImagePath'] if 'srcProcParentImagePath' in event else 'None'
-                    tgtprocimagepath = event['tgtProcImagePath'] if 'tgtProcImagePath' in event else 'None'
-                    url = event['networkUrl'] if 'networkUrl' in event else 'None'
-                    srcip = event['srcIp'] if 'srcIp' in event else 'None'
-                    dstip = event['dstIp'] if 'dstIp' in event else 'None'
-                    dnsrequest = event['dnsRequest'] if 'dnsRequest' in event else 'None'
-                    command_line = event['srcProcCmdLine']
-                    additional_data = (event['eventTime'], event['siteId'], event['siteName'], srcprocstorylineid, srcprocdisplayname, scrprocparentimagepath, tgtprocdisplayname, tgtprocimagepath, tgtfilepath, tgtfilesha1, tgtfilesha256, url, srcip, dstip, dnsrequest, event['eventType'])
+                    hostname = event.get('endpointName')
+                    username = event.get('srcProcUser')
+                    path = event.get('srcProcImagePath')
+                    command_line = event.get('srcProcCmdLine')
+                    timestamp = event.get('eventTime')
 
-                result = Result(hostname, username, path, command_line, additional_data, (event))
-                
-                # Raw Feature (Inactive)
-                '''
-                if self._raw:
-                    self._results[merged_tag].append(event)
-                else:
-                    self._results[merged_tag].append(result)
-                '''
+                result = Result(
+                    hostname=hostname, 
+                    username=username, 
+                    path=path, 
+                    command_line=command_line,
+                    timestamp=timestamp,
+                    raw_data=(event)
+                    )
 
                 self._results[merged_tag].append(result)
 
@@ -813,6 +790,3 @@ class SentinelOne(Product):
             self._process_queries()
 
         return self._results
-
-    def get_other_row_headers(self) -> list[str]:
-        return ['Event Time', 'Site ID', 'Site Name', 'SrcProcStorylineId', 'SrcProcDisplayName', 'SrcProcParentImagePath', 'TgtProcDisplayName', 'TgtProcPath', 'TgtFilePath', 'TgtFileSHA1', 'TgtFileSHA256', 'Network URL', 'Source IP', 'Dest IP', 'DNS Request', 'EventType']

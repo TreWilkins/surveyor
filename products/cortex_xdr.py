@@ -57,7 +57,6 @@ class CortexXDR(Product):
     _queries: dict[Tag, list[Query]] = dict()
     _last_request: float = 0.0
     _limit: int = 1000 # Max is 1000 results otherwise have to get the results via stream
-    _raw: bool = False
 
     def __init__(self, **kwargs):
 
@@ -68,7 +67,6 @@ class CortexXDR(Product):
         self._api_key_id = kwargs['api_key_id'] if 'api_key_id' in kwargs else ''   
         self._url =  kwargs['url'] if 'url' in kwargs else ''
         self._auth_type = kwargs['auth_type'] if 'auth_type' in kwargs else "standard"
-        self._raw = kwargs['raw'] if 'raw' in kwargs else self._raw
 
         if self._limit >= int(kwargs.get('limit',0)) > 0:
             self._limit = int(kwargs['limit'])
@@ -319,16 +317,16 @@ class CortexXDR(Product):
                         event['actor_process_image_path']
                     commandline = event['action_process_command_line'] if 'action_process_command_line' in event else \
                         event['actor_process_command_line']
-                    additional_data = (event['_time'], event['event_id'])
+                    timestamp = event['_time']
 
-                    '''
-                    if self._raw:
-                        self._results[tag].append(event)
-                    else:
-                        result = Result(hostname, username, path, commandline, additional_data)
-                        self._results[tag].append(result)
-                    '''
-                    result = Result(hostname, username, path, commandline, additional_data, (event))
+                    result = Result(
+                        hostname=hostname, 
+                        username=username, 
+                        path=path, 
+                        command_line=commandline, 
+                        timestamp=timestamp, 
+                        raw_data=(event)
+                        )
                     self._results[tag].append(result)
                         
         self._queries.clear()
@@ -342,6 +340,3 @@ class CortexXDR(Product):
             self._process_queries()
 
         return self._results
-
-    def get_other_row_headers(self) -> list[str]:
-        return ['Event Time', 'Event ID']

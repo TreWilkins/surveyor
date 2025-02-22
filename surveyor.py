@@ -22,7 +22,7 @@ class Surveyor():
     supported_products: tuple = ('cbr', 'cbc', 'dfe', 'cortex', 's1')
     log_format = '[%(asctime)s] [%(levelname)-8s] [%(name)-36s] [%(filename)-20s:%(lineno)-4s] %(message)s'
 
-    def __init__(self, product_str: str,
+    def __init__(self, product_str: str=None,
                  creds_file: Optional[str] = None,
                  profile: Optional[str] = 'default',
                  cbr_sensor_group: Optional[str]=None,
@@ -50,8 +50,10 @@ class Surveyor():
                  **kwargs) -> dict:
         
         self.product_args.clear()
-    
-        product_str = product_str.lower()
+        if not product_str:
+            print(f"No product selected, in order to use surveyor please specify a product such as: {self.supported_products}")
+        else:
+            product_str = product_str.lower()
 
         args = {
             "product": product_str,
@@ -132,10 +134,7 @@ class Surveyor():
                     raise Exception("S1 requires either a creds_file or token to be specified")
                 elif not args.get('creds_file') and not any([args.get('site_ids'), args.get('account_ids'), args.get('account_names')]):
                     raise Exception("S1 requires either site_ids, account_ids, or account_names to be specified")
-            case _:
-                raise Exception(f"Invalid product: {product_str}.\
-                                Must be one of: {" ".join(self.supported_products)}")
-        
+      
         self.product_args = args
 
 
@@ -364,8 +363,6 @@ class Surveyor():
             self.log.info(f"-->{tag.tag}: {len(results)} results")
 
         for result in results:
-            row = {
-                k:v for k,v in result.__dict__ if k != "raw_data"
-                } if not self.raw_data else json.loads(result.raw_data)
+            row = result.__dict__ if not self.raw_data else json.loads(result.raw_data)
             row.update(dict(program=program, source=source))
             self.results.append(row)

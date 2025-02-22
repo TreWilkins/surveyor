@@ -21,7 +21,7 @@ class Result:
     username: str
     path: str
     command_line: str
-    other_data: Optional[Tuple] = None  # use tuples as they are immutable
+    timestamp: str
     raw_data: Optional[Tuple] = None
 
 
@@ -111,13 +111,6 @@ class Product(ABC):
         are lists containing the search results as tuples with members: hostname, username, path, command_line.
         """
         return self._results
-
-    # noinspection PyMethodMayBeStatic
-    def get_other_row_headers(self) -> list[str]:
-        """
-        Retrieve any additional headers this product includes in results.
-        """
-        return list()
 
     def _add_results(self, results: list[Result], tag: Optional[Tag] = None):
         """

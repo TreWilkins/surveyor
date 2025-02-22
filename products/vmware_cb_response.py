@@ -67,7 +67,14 @@ class CbResponse(Product):
         try:
             # noinspection PyUnresolvedReferences
             for proc in self._conn.select(Process).where(query):
-                result = Result(proc.hostname.lower(), proc.username.lower(), proc.path, proc.cmdline,(proc.start, proc.id), (json.dumps(proc.__dict__)))
+                result = Result(
+                    hostname=proc.hostname.lower(), 
+                    username=proc.username.lower(), 
+                    path=proc.path, 
+                    command_line=proc.cmdline, 
+                    timestamp = proc.start, 
+                    raw_data=(json.dumps(proc.__dict__))
+                    )
                 
                 # Raw Feature (Inactive)
                 '''
@@ -116,7 +123,14 @@ class CbResponse(Product):
                 self.log.debug(f'Query: {query}')
                 # noinspection PyUnresolvedReferences
                 for proc in self._conn.select(Process).where(query):
-                    result = Result(proc.hostname.lower(), proc.username.lower(), proc.path, proc.cmdline,(proc.start,), (json.dumps(proc.__dict__)))
+                    result = Result(
+                        hostname=proc.hostname.lower(), 
+                        username=proc.username.lower(), 
+                        path=proc.path, 
+                        command_line=proc.cmdline, 
+                        timestamp = proc.start, 
+                        raw_data=(json.dumps(proc.__dict__))
+                        )
                     results.add(result)
                     if self._limit > 0 and len(results)+1 > self._limit:
                         break
@@ -128,6 +142,3 @@ class CbResponse(Product):
             self.log.exception("Caught CTRL-C. Returning what we have . . .")
 
         self._add_results(list(results), tag)
-
-    def get_other_row_headers(self) -> list[str]:
-        return ['Process Start', 'Process GUID']

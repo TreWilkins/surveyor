@@ -147,7 +147,14 @@ class DefenderForEndpoints(Product):
 
                     timestamp = res['Timestamp'] if 'Timestamp' in res else 'Unknown'
 
-                    result = Result(hostname, username, proc_name, cmdline,(timestamp,), (res))
+                    result = Result(
+                        hostname=hostname, 
+                        username=username, 
+                        path=proc_name, 
+                        command_line=cmdline,
+                        timestamp=timestamp, 
+                        raw_data=(res)
+                        )
                     results.add(result)
             else:
                 self.log.error(f"Received status code: {response.status_code} (message: {response.json()})")
@@ -236,6 +243,3 @@ class DefenderForEndpoints(Product):
                 self.log.warning(f'Query filter {key} is not supported by product {self.product}')
 
         return ' '.join(query_base)
-
-    def get_other_row_headers(self) -> list[str]:
-        return ['Timestamp']

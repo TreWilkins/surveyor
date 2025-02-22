@@ -44,7 +44,6 @@ class CbEnterpriseEdr(Product):
     _device_policy: Optional[list[str]] = None  
     _conn: CBCloudAPI  # CB Cloud API
     _limit: int = -1
-    _raw: bool = False
 
     def __init__(self, **kwargs):
         self.url = kwargs['url'] if 'url' in kwargs else None
@@ -54,8 +53,7 @@ class CbEnterpriseEdr(Product):
         self._device_group = kwargs['device_group'] if 'device_group' in kwargs else None
         self._device_policy = kwargs['device_policy'] if 'device_group' in kwargs else None
         self._limit = int(kwargs['limit']) if 'limit' in kwargs else self._limit
-        self._raw = kwargs['raw'] if 'raw' in kwargs else self._raw
-        
+
         super().__init__(self.product, **kwargs)
 
     def _authenticate(self) -> None:
@@ -131,15 +129,15 @@ class CbEnterpriseEdr(Product):
                 ts = deets['device_timestamp'] if 'device_timestamp' in deets else 'None'
                 proc_guid = deets['process_guid'] if 'process_guid' in deets else 'None'
                 
-                result = Result(hostname, user, proc_name, cmdline, (ts, proc_guid,), (json.dumps(deets)))
+                result = Result(
+                    hostname=hostname, 
+                    username=user, 
+                    path=proc_name, 
+                    command_line=cmdline, 
+                    timestamp = ts,
+                    raw_data=(json.dumps(deets))
+                    )
                 
-                # Raw Feature (Inactive)
-                '''
-                if self._raw: 
-                    raw_results.append(deets)
-                else:
-                    results.add(result)
-                '''
                 results.add(result)
                     
                 if self._limit > 0 and len(results)+1 > self._limit:
@@ -150,13 +148,6 @@ class CbEnterpriseEdr(Product):
         except KeyboardInterrupt:
             self.log.exception("Caught CTRL-C. Returning what we have . . .")
         
-        # Raw Feature (Inactive)
-        ''' 
-        if self._raw:
-            return raw_results
-        else:
-            return results
-        '''
         return results
     
     def process_search(self, tag: Tag, base_query: dict, query: str) -> None:        
@@ -193,6 +184,3 @@ class CbEnterpriseEdr(Product):
 
         self.log.debug(f'Nested search results: {len(results)}')
         self._add_results(list(results), tag)
-
-    def get_other_row_headers(self) -> list[str]:
-        return ['Device Timestamp', 'Process GUID']
