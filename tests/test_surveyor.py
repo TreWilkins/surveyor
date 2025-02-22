@@ -87,7 +87,7 @@ def test_custom_query(mocker):
     mocked_process_search.assert_called_once_with(Tag('query'), {}, 'SELECT * FROM processes')
 
 
-def test_def_file(runner, mocker):
+def test_def_file(mocker):
     """
     Verify when a definition file is passed, it is logged and an EDR product is called
     """
@@ -102,7 +102,7 @@ def test_def_file(runner, mocker):
         )
 
 
-def test_def_file_with_base_query(runner, mocker):
+def test_def_file_with_base_query(mocker):
     """
     Verify when a definition file is passed, it is logged and an EDR product is called
     """
@@ -116,7 +116,7 @@ def test_def_file_with_base_query(runner, mocker):
         )
 
 
-def test_ioc_file(runner, mocker):
+def test_ioc_file(mocker):
     """
     Verify if an IOC file is passed, it is logged and an EDR product is called
     """
@@ -128,7 +128,7 @@ def test_ioc_file(runner, mocker):
     mocked_nested_process_search.assert_called_once_with(Tag(f'IOC - [\'127.0.0.1\']', 'test_ioc_list'), {'ipaddr':['127.0.0.1']}, {})
 
 
-def test_ioc_file_with_base_query(runner, mocker):
+def test_ioc_file_with_base_query(mocker):
     """
     Verify if an IOC file is passed, it is logged and an EDR product is called
     """
@@ -150,14 +150,10 @@ def test_unsupported_option():
         assert "got an unexpected keyword argument" in e_info
 
 
-def test_dependent_ioc_args(runner):
-    with runner.isolated_filesystem() as temp_dir:
-        ioc_file_path = os.path.join(temp_dir, "ioc_list.txt")
-        with open(ioc_file_path, 'w') as deffile:
-            deffile.write("127.0.0.1")
-        with pytest.raises(Exception) as e_info:
-            Surveyor("cbr").survey(ioc_file=ioc_file_path)
-            assert "iocfile requires ioctype" in e_info
+def test_dependent_ioc_args():
+    with pytest.raises(Exception) as e_info:
+        Surveyor("cbr").survey(ioc_file=["127.0.0.1"])
+        assert "iocfile requires ioctype" in e_info
 
 
 def test_mutually_exclusive_days_mins():
@@ -177,7 +173,7 @@ def test_base_query_filters_with_query(mocker):
         )
 
 
-def test_sigma_rule(runner, mocker):
+def test_sigma_rule(mocker):
     mocker.patch('products.vmware_cb_response.CbResponse._authenticate')
     mocked_nested_process_search = mocker.patch('products.vmware_cb_response.CbResponse.nested_process_search')
 
@@ -198,7 +194,7 @@ fields:
     mocked_nested_process_search.assert_called_once_with(Tag('Test sigma rule - 5fd18e43-749c-4bae-93b6-d46e1f27062e', 'Sigma Rule'), {"query":["process_name:curl.exe"]}, {})
 
 
-def test_sigma_rule_with_base_query(runner, mocker):
+def test_sigma_rule_with_base_query(mocker):
     mocker.patch('products.vmware_cb_response.CbResponse._authenticate')
     mocked_nested_process_search = mocker.patch('products.vmware_cb_response.CbResponse.nested_process_search')
 
