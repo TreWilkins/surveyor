@@ -75,7 +75,7 @@ def test_process_search_limit_option(dfe_product: DefenderForEndpoints, mocker):
     dfe_product.log = logging.getLogger('pytest_surveyor')
     dfe_product._token = 'test_token_value'
     dfe_product.process_search(Tag('test123'), {}, query)
-    mocked_post_advanced_query.assert_called_once_with(data={'Query': full_query}, headers=None)
+    mocked_post_advanced_query.assert_called_once_with(data={'Query': full_query}, headers=None, tag=Tag('test123'))
 
 def test_process_search(dfe_product : DefenderForEndpoints, mocker):
     """
@@ -90,7 +90,7 @@ def test_process_search(dfe_product : DefenderForEndpoints, mocker):
     dfe_product.log = logging.getLogger('pytest_surveyor')
     dfe_product._token = 'test_token_value'
     dfe_product.process_search(Tag('test123'), {}, query)
-    mocked_post_advanced_query.assert_called_once_with(data={'Query': query}, headers=None)
+    mocked_post_advanced_query.assert_called_once_with(data={'Query': query}, headers=None, tag=Tag('test123'))
 
 def test_nested_process_search(dfe_product : DefenderForEndpoints, mocker):
     """
@@ -138,7 +138,7 @@ def test_nested_process_search_limit_option(dfe_product: DefenderForEndpoints, m
     dfe_product.log = logging.getLogger('pytest_surveyor')
     dfe_product._token = 'test_token_value'
     dfe_product.nested_process_search(Tag('test123'), {'query': query}, {})
-    mocked_post_advanced_query.assert_called_once_with(data={'Query': full_query}, headers=None)
+    mocked_post_advanced_query.assert_called_once_with(data={'Query': full_query}, headers=None, tag=Tag('test123'))
 
 def test_nested_process_search_unsupported_field(dfe_product : DefenderForEndpoints, mocker):
     """
@@ -172,8 +172,7 @@ def test_process_search_build_query(dfe_product : DefenderForEndpoints, mocker):
     dfe_product.log = logging.getLogger('pytest_surveyor')
     dfe_product._token = 'test_token_value'
     dfe_product.process_search(Tag('test123'), filters, query)
-    mocked_post_advanced_query.assert_called_once_with(data={'Query': 'DeviceFileEvents | where FileName="bar foo" | where Timestamp > ago(1d) | where Timestamp > ago(2m) | where DeviceName contains "server1" | where AccountName contains "guest"'}, headers=None)
-
+    mocked_post_advanced_query.assert_called_once_with(data={'Query': 'DeviceFileEvents | where FileName="bar foo" | where Timestamp > ago(1d) | where Timestamp > ago(2m) | where DeviceName contains "server1" | where AccountName contains "guest"'}, headers=None, tag=Tag('test123'))
 def test_nested_process_search_build_query(dfe_product : DefenderForEndpoints, mocker):
     """
     Verify nested_process_search() correctly merges a given query with filter options

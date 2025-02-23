@@ -110,8 +110,7 @@ class DefenderForEndpoints(Product):
 
         return response.json()['access_token']
 
-    def _post_advanced_query(self, data: dict, headers: dict) -> list[Result]:
-        #raw_results = list()
+    def _post_advanced_query(self, data: dict, headers: dict, tag:Tag) -> list[Result]:
         results = set()
 
         try:
@@ -146,6 +145,8 @@ class DefenderForEndpoints(Product):
                         path=proc_name, 
                         command_line=cmdline,
                         timestamp=timestamp, 
+                        query=data.get('Query'),
+                        program=tag.tag,
                         raw_data=(res)
                         )
                     results.add(result)
@@ -176,7 +177,7 @@ class DefenderForEndpoints(Product):
         self.log.debug(f'Query: {query}')
         full_query = {'Query': query}
 
-        results = self._post_advanced_query(data=full_query, headers=self._get_default_header())
+        results = self._post_advanced_query(data=full_query, headers=self._get_default_header(), tag=tag)
 
         self._add_results(list(results), tag)
 

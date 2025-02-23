@@ -324,7 +324,9 @@ class CortexXDR(Product):
                         username=username, 
                         path=path, 
                         command_line=commandline, 
-                        timestamp=timestamp, 
+                        timestamp=timestamp,
+                        query = query_string,
+                        program=tag.tag,
                         raw_data=(event)
                         )
                     self._results[tag].append(result)

@@ -84,7 +84,7 @@ def test_custom_query(mocker):
     mocker.patch('products.vmware_cb_response.CbResponse._authenticate')
     mocked_process_search = mocker.patch('products.vmware_cb_response.CbResponse.process_search')
     Surveyor("cbr").survey(query="SELECT * FROM processes")
-    mocked_process_search.assert_called_once_with(Tag('query'), {}, 'SELECT * FROM processes')
+    mocked_process_search.assert_called_once_with(Tag("SELECT * FROM processes"), {}, 'SELECT * FROM processes')
 
 
 def test_def_file(mocker):
@@ -94,9 +94,9 @@ def test_def_file(mocker):
     mocker.patch('products.vmware_cb_response.CbResponse._authenticate')
     mocked_nested_process_search = mocker.patch('products.vmware_cb_response.CbResponse.nested_process_search')
 
-    Surveyor("cbr").survey(definitions={"ProgramA":{"process_name":["test.exe"]}}, label="test_deflist")
+    Surveyor("cbr").survey(definitions={"ProgramA":{"process_name":["test.exe"]}})
     mocked_nested_process_search.assert_called_once_with(
-        Tag('ProgramA', 'test_deflist'), 
+        Tag('ProgramA'), 
         {"process_name":["test.exe"]}, 
         {}
         )
@@ -108,9 +108,9 @@ def test_def_file_with_base_query(mocker):
     """
     mocker.patch('products.vmware_cb_response.CbResponse._authenticate')
     mocked_nested_process_search = mocker.patch('products.vmware_cb_response.CbResponse.nested_process_search')
-    Surveyor("cbr").survey(definitions={"ProgramA":{"process_name":["test.exe"]}}, days=5, hostname="workstation1", username="admin", label="test_deflist")
+    Surveyor("cbr").survey(definitions={"ProgramA":{"process_name":["test.exe"]}}, days=5, hostname="workstation1", username="admin")
     mocked_nested_process_search.assert_called_once_with(
-        Tag('ProgramA', 'test_deflist'), 
+        Tag('ProgramA'), 
         {"process_name":["test.exe"]}, 
         {'days':5, 'hostname':'workstation1', 'username':'admin'}
         )
@@ -125,7 +125,7 @@ def test_ioc_file(mocker):
 
     Surveyor("cbr").survey(ioc_list=["127.0.0.1"], ioc_type="ipaddr", label="test_ioc_list")
     mocked_func.assert_called_once()
-    mocked_nested_process_search.assert_called_once_with(Tag(f'IOC - [\'127.0.0.1\']', 'test_ioc_list'), {'ipaddr':['127.0.0.1']}, {})
+    mocked_nested_process_search.assert_called_once_with(Tag("test_ioc_list"), {'ipaddr':['127.0.0.1']}, {})
 
 
 def test_ioc_file_with_base_query(mocker):
@@ -138,7 +138,7 @@ def test_ioc_file_with_base_query(mocker):
     Surveyor("cbr").survey(ioc_list=["127.0.0.1"], ioc_type="ipaddr", days=5, hostname="workstation1", username="admin", label="test_ioc_list")
     mocked_func.assert_called_once()
     mocked_nested_process_search.assert_called_once_with(
-        Tag(f'IOC - [\'127.0.0.1\']', 'test_ioc_list'), 
+        Tag(f'test_ioc_list'), 
         {'ipaddr':['127.0.0.1']}, 
         {'days':5, 'hostname':'workstation1', 'username':'admin'}
         )
@@ -167,7 +167,7 @@ def test_base_query_filters_with_query(mocker):
     mocked_process_search = mocker.patch('products.vmware_cb_response.CbResponse.process_search')
     Surveyor("cbr").survey(query="SELECT * FROM processes", days=5, hostname="workstation1", username="admin")
     mocked_process_search.assert_called_once_with(
-        Tag('query'), 
+        Tag("SELECT * FROM processes"), 
         {'days':5, 'hostname':'workstation1','username':'admin'}, 
         'SELECT * FROM processes'
         )
@@ -190,8 +190,8 @@ detection:
 fields:
     - CommandLine
     - ParentCommandLine"""
-    Surveyor("cbr").survey(sigma_rule=sigmarule, label='Sigma Rule')
-    mocked_nested_process_search.assert_called_once_with(Tag('Test sigma rule - 5fd18e43-749c-4bae-93b6-d46e1f27062e', 'Sigma Rule'), {"query":["process_name:curl.exe"]}, {})
+    Surveyor("cbr").survey(sigma_rule=sigmarule)
+    mocked_nested_process_search.assert_called_once_with(Tag('Test sigma rule - 5fd18e43-749c-4bae-93b6-d46e1f27062e'), {"query":["process_name:curl.exe"]}, {})
 
 
 def test_sigma_rule_with_base_query(mocker):
@@ -210,5 +210,5 @@ detection:
 fields:
     - CommandLine
     - ParentCommandLine"""
-    Surveyor("cbr").survey(sigma_rule=sigmarule, days=5, hostname="workstation1", username="admin", label='Sigma Rule')
-    mocked_nested_process_search.assert_called_once_with(Tag('Test sigma rule - 5fd18e43-749c-4bae-93b6-d46e1f27062e', 'Sigma Rule'), {"query":["process_name:curl.exe"]}, {'username':'admin', 'hostname':'workstation1','days':5 })
+    Surveyor("cbr").survey(sigma_rule=sigmarule, days=5, hostname="workstation1", username="admin")
+    mocked_nested_process_search.assert_called_once_with(Tag('Test sigma rule - 5fd18e43-749c-4bae-93b6-d46e1f27062e'), {"query":["process_name:curl.exe"]}, {'username':'admin', 'hostname':'workstation1','days':5 })

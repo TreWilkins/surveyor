@@ -106,7 +106,6 @@ class CbEnterpriseEdr(Product):
             yield l[i:i + n]
 
     def perform_query(self, tag: Tag, base_query: dict, query: str) -> set[Result]:
-        #raw_results= list()
         results = set()
         parsed_base_query = self.build_query(base_query)
         try:
@@ -134,6 +133,8 @@ class CbEnterpriseEdr(Product):
                     path=proc_name, 
                     command_line=cmdline, 
                     timestamp = timestamp,
+                    query=full_query.__str__,
+                    program=tag.tag,
                     raw_data=(json.dumps(deets))
                     )
                 

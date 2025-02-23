@@ -20,7 +20,7 @@ class Surveyor():
     supported_products: tuple = ('cbr', 'cbc', 'dfe', 'cortex', 's1')
     log_format = '[%(asctime)s] [%(levelname)-8s] [%(name)-36s] [%(filename)-20s:%(lineno)-4s] %(message)s'
 
-    def __init__(self, product_str: str=None,
+    def __init__(self, product: str=None,
                  creds_file: Optional[str] = None,
                  profile: Optional[str] = 'default',
                  cbr_sensor_group: Optional[str]=None,
@@ -48,25 +48,25 @@ class Surveyor():
                  **kwargs) -> dict:
         
         self.product_args.clear()
-        if not product_str:
+        if not product:
             print(f"No product selected, in order to use surveyor please specify a product such as: {self.supported_products}")
         else:
-            product_str = product_str.lower()
+            product = product.lower()
 
         args = {
-            "product": product_str,
+            "product": product,
             "profile": profile
             }
         
         # Check if creds file exists for Cortex, S1, and DFE
-        if product_str in ['cortex', 'dfe', 's1']:
+        if product in ['cortex', 'dfe', 's1']:
             if creds_file:
                 if os.path.exists(creds_file) and os.path.isfile(creds_file):
                     args['creds_file'] = creds_file
                 else:
                     raise Exception(f"The creds_file doesn't exist at {creds_file} or is not a file. Please try again.")
                 
-        match product_str:
+        match product:
             case 'cbr':
                 if cbr_sensor_group:
                     args['sensor_group'] = list(cbr_sensor_group)
@@ -175,15 +175,11 @@ class Surveyor():
         
         self.results.clear()
         
-        if self.product_args.get('product') is None:
-            raise Exception("product argument is required. Be sure to use setup_product_args() to set up the product arguments")
+        if str(self.product_args.get('product')) not in self.supported_products:
+            raise Exception(f"product argument is required. Be sure to init the Surveyor class with a supported product {self.supported_products}")
         else:
-            product_str = self.product_args['product']
-            del self.product_args['product'] # remove product key from product_args after setting product_str
-
-        if product_str not in self.supported_products:
-            raise Exception(f"Invalid product: {product_str}.\
-                            Must be one of: {" ".join(self.supported_products)}")
+            product = self.product_args['product']
+            del self.product_args['product'] # remove product key from product_args after setting product
 
         if ioc_list and ioc_type is None:
             raise Exception("iocfile requires ioctype")
@@ -193,7 +189,7 @@ class Surveyor():
 
         # instantiate a logger
         self.log = logging.getLogger('surveyor')
-        logging.debug(f'Product: {product_str}')
+        logging.debug(f'Product: {product}')
 
         # configure logging
         root = logging.getLogger()
@@ -204,7 +200,7 @@ class Surveyor():
         os.makedirs(log_dir, exist_ok=True)
 
         # create logging file handler
-        log_file_name = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S') + f'.{product_str}.log'
+        log_file_name = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S') + f'.{product}.log'
         handler = logging.FileHandler(os.path.join(log_dir, log_file_name))
         handler.setLevel(logging.DEBUG)
         handler.setFormatter(logging.Formatter(self.log_format))
@@ -218,13 +214,10 @@ class Surveyor():
 
         # instantiate a product class instance based on the product string
         try:
-            product = get_product_instance(product_str, **kwargs)
+            product = get_product_instance(product, **kwargs)
         except ValueError as e:
             self.log.exception(e)
             raise Exception(str(e))
-
-        # placeholder for definition files if defdir or deffile is selected
-        definition_files = list()
 
         # base_query stores the filters applied to the product query
         # initial query is retrieved from product instance
@@ -244,60 +237,61 @@ class Surveyor():
             if query:
                 # if a query is specified run it directly
                 self.log.info(f"Running Custom Query: {query}")
-                product.process_search(Tag('query'), base_query, query)
+                label = query if not label else label
+                product.process_search(Tag(label), base_query, query)
 
                 for tag, results in product.get_results().items():
-                    self._save_results(results, query, "query", tag)
+                    self._save_results(results, tag)
 
             # run search based on IOC list
             if ioc_list:
                 ioc_list = [x.strip() for x in ioc_list]
-
-                product.nested_process_search(Tag(f"IOC - {ioc_list}", data=label), {ioc_type: ioc_list}, base_query)
+                label = "IoC List" if not label else label
+                product.nested_process_search(Tag(label), {ioc_type: ioc_list}, base_query)
 
                 for tag, results in product.get_results().items():
-                    self._save_results(results, str(ioc_list), 'ioc', tag)
+                    self._save_results(results, tag)
                         
             # run search against definition files and write to csv
             if definitions and isinstance(definitions, dict):
                 for program, criteria in definitions.items():
-                    product.nested_process_search(Tag(program, data=label), criteria, base_query)
+                    product.nested_process_search(Tag(program), criteria, base_query)
 
                     if product.has_results():
                         # write results as they become available
                         for tag, nested_results in product.get_results(final_call=False).items():
-                            self._save_results(nested_results, program, str(tag.data), tag)
+                            self._save_results(nested_results, tag)
                             
                         # ensure results are only written once
                         product.clear_results()
 
                 # write any remaining results
                 for tag, nested_results in product.get_results().items():
-                    self._save_results(nested_results, tag.tag, str(tag.data), tag)
+                    self._save_results(nested_results, tag)
                     
             # if there's sigma rule to be processed
             if sigma_rule:
                 pq_check = True if 'pq' in self.product_args and self.product_args['pq'] else False
-                translated_rules = sigma_translation(product_str, [sigma_rule], pq_check)
+                translated_rules = sigma_translation(product.product, [sigma_rule], pq_check)
                 if len(translated_rules['queries']) != len(sigma_rules):
                     self.log.warning(f"Only {len(translated_rules['queries'])} out of {len(sigma_rules)} were able to be translated.")
                 
                 for rule in translated_rules['queries']:
-                    program = f"{rule['title']} - {rule['id']}"
+                    label = f"{rule['title']} - {rule['id']}" if not label else label
 
-                    product.nested_process_search(Tag(program, data=label), {'query': [rule['query']]}, base_query)
+                    product.nested_process_search(Tag(label), {'query': [rule['query']]}, base_query)
 
                     if product.has_results():
                         # write results as they become available
                         for tag, nested_results in product.get_results(final_call=False).items():
-                            self._save_results(nested_results, program, str(tag.data), tag)
+                            self._save_results(nested_results, tag)
                         
                         # ensure results are only written once
                         product.clear_results()
 
                 # write any remaining results
                 for tag, nested_results in product.get_results().items():
-                    self._save_results(nested_results, tag.tag, str(tag.data), tag)
+                    self._save_results(nested_results, tag)
                     
             return self.results
         
@@ -307,8 +301,7 @@ class Surveyor():
             self.log.error(f'Caught {type(e).__name__} (see log for details): {e}')
 
 
-    def _save_results(self, results: list[Result], program: str, source: str,
-                   tag: Tag) -> Union[None, list]:
+    def _save_results(self, results: list[Result], tag: Tag) -> Union[None, list]:
         """
         Helper function for writing search results to list.
         """
@@ -316,12 +309,7 @@ class Surveyor():
         if isinstance(tag, tuple):
             tag = tag[0]
 
-        if len(results) > 0:
-            self.log.info(f"\033[92m-->{tag.tag}: {len(results)} results \033[0m")
-        else:
-            self.log.info(f"-->{tag.tag}: {len(results)} results")
-
-        for result in results:
-            row = result.__dict__
-            row.update(dict(program=program, source=source))
-            self.results.append(row)
+        self.log.info(f"-->{tag.tag}: {len(results)} results")
+       
+        results = [result.__dict__ for result in results]
+        self.results.extend(results)

@@ -668,6 +668,8 @@ class SentinelOne(Product):
                     path=path, 
                     command_line=command_line,
                     timestamp=timestamp,
+                    query=merged_query,
+                    program=merged_tag.tag,
                     raw_data=(event)
                     )
 
