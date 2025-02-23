@@ -23,27 +23,22 @@ class Surveyor():
     def __init__(self, product: str=None,
                  creds_file: Optional[str] = None,
                  profile: Optional[str] = 'default',
+                 url: Optional[str] = None,
+                 token: Optional[str] = None,
                  cbr_sensor_group: Optional[str]=None,
-                 cbr_token: Optional[str] = None,
-                 cbr_url: Optional[str] = None,
                  cbc_device_group: Optional[str] = None,
                  cbc_device_policy: Optional[str] = None,
-                 cbc_token: Optional[str] = None,
-                 cbc_url: Optional[str] = None,
                  cbc_org_key: Optional[str] = None,
                  cortex_tenant_ids: Optional[List[int]] = None,
                  cortex_api_key: Optional[str] = None,
-                 cortex_api_key_id: Optional[str] = None,
-                 cortex_api_url: Optional[str] = None,
+                 cortex_api_key_id: Optional[int] = None,
                  cortex_auth_type: Optional[str] = None,
-                 dfe_token: Optional[str] = None,
                  dfe_tenantId: Optional[str] = None,
                  dfe_appId: Optional[str] = None,
                  dfe_appSecret: Optional[str] = None,
                  s1_site_ids: Optional[List[str]] = None,
                  s1_account_ids: Optional[List[str]] = None,
                  s1_account_names: Optional[List[str]] = None,
-                 s1_token: Optional[str] = None,
                  s1_use_powerquery: bool=True,
                  **kwargs) -> dict:
         
@@ -70,10 +65,10 @@ class Surveyor():
             case 'cbr':
                 if cbr_sensor_group:
                     args['sensor_group'] = list(cbr_sensor_group)
-                if cbr_token:
-                    args['token'] = cbr_token
-                if cbr_url:
-                    args['url'] = cbr_url
+                if token:
+                    args['token'] = token
+                if url:
+                    args['url'] = url
                 # Credentials file is not required for CBR, given that the SDK attempts to load from disk by default.\
                 # If no credentials can be found or are not passed in as arguments, an exception will be raised
             case'cbc':
@@ -81,17 +76,17 @@ class Surveyor():
                     args['device_group'] = list(cbc_device_group)
                 if cbc_device_policy:
                     args['device_policy'] = list(cbc_device_policy)
-                if cbc_token:
-                    args['token'] = cbc_token
-                if cbc_url:
-                    args['url'] = cbc_url
+                if token:
+                    args['token'] = token
+                if url:
+                    args['url'] = url
                 if cbc_org_key:
                     args['org_key'] = cbc_org_key
                     # Credentials file is not required for CBC, given that the SDK attempts to load from disk by default.\
                     #  If no credentials can be found or are not passed in as arguments, an exception will be raised
             case 'dfe':
-                if dfe_token:
-                    args['token'] = dfe_token
+                if token:
+                    args['token'] = token
                 if dfe_tenantId:
                     args['tenantId'] = dfe_tenantId
                 if dfe_appId:
@@ -106,9 +101,9 @@ class Surveyor():
                 if cortex_api_key:
                     args['api_key'] = cortex_api_key
                 if cortex_api_key_id:
-                    args['api_key_id'] = cortex_api_key_id
-                if cortex_api_url:
-                    args['url'] = cortex_api_url
+                    args['api_key_id'] = str(cortex_api_key_id)
+                if url:
+                    args['url'] = url
                 if cortex_auth_type and isinstance(cortex_auth_type, str):
                     if cortex_auth_type.lower() in ['standard', 'advanced']:
                         args['auth_type'] = cortex_auth_type
@@ -125,10 +120,12 @@ class Surveyor():
                     args['account_names'] = s1_account_names
                 if not s1_use_powerquery:
                     args['pq'] = False
-                if s1_token:
-                    args['token'] = s1_token
-                if not any([args.get('creds_file'), args.get('token')]):
-                    raise Exception("S1 requires either a creds_file or token to be specified")
+                if token:
+                    args['token'] = token
+                if url:
+                    args["url"] = url
+                if not any([args.get('creds_file'), [args.get('token') and args.get("url")]]):
+                    raise Exception("S1 requires either a creds_file or token & URL to be specified")
                 elif not args.get('creds_file') and not any([args.get('site_ids'), args.get('account_ids'), args.get('account_names')]):
                     raise Exception("S1 requires either site_ids, account_ids, or account_names to be specified")
       
