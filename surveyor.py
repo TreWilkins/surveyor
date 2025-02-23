@@ -30,7 +30,6 @@ class Surveyor():
                  cbc_device_policy: Optional[str] = None,
                  cbc_org_key: Optional[str] = None,
                  cortex_tenant_ids: Optional[List[int]] = None,
-                 cortex_api_key: Optional[str] = None,
                  cortex_api_key_id: Optional[int] = None,
                  cortex_auth_type: Optional[str] = None,
                  dfe_tenantId: Optional[str] = None,
@@ -39,7 +38,6 @@ class Surveyor():
                  s1_site_ids: Optional[List[str]] = None,
                  s1_account_ids: Optional[List[str]] = None,
                  s1_account_names: Optional[List[str]] = None,
-                 s1_use_powerquery: bool=True,
                  **kwargs) -> dict:
         
         self.product_args.clear()
@@ -98,8 +96,8 @@ class Surveyor():
             case 'cortex':
                 if cortex_tenant_ids:
                     args['tenant_ids'] = list(cortex_tenant_ids)
-                if cortex_api_key:
-                    args['api_key'] = cortex_api_key
+                if token:
+                    args['api_key'] = token
                 if cortex_api_key_id:
                     args['api_key_id'] = str(cortex_api_key_id)
                 if url:
@@ -109,8 +107,8 @@ class Surveyor():
                         args['auth_type'] = cortex_auth_type
                     else:
                         raise ValueError("Invalid auth_type specified for Cortex, please provide either 'standard' or 'advanced'")
-                if not any([args.get('creds_file'), (args.get('api_key') and args.get('url') and args.get('api_key_id'))]):
-                    raise Exception("Cortex requires either a creds_file or api_key, api_key_id, and url to be specified")
+                if not any([args.get('creds_file'), (args.get('token') and args.get('url') and args.get('api_key_id'))]):
+                    raise Exception("Cortex requires either a creds_file or token (api_key), api_key_id, and url to be specified")
             case 's1':
                 if s1_site_ids:
                     args['site_ids'] = s1_site_ids
@@ -118,8 +116,6 @@ class Surveyor():
                     args['account_ids'] = s1_account_ids
                 if s1_account_names:
                     args['account_names'] = s1_account_names
-                if not s1_use_powerquery:
-                    args['pq'] = False
                 if token:
                     args['token'] = token
                 if url:
@@ -143,6 +139,7 @@ class Surveyor():
                query: Optional[str] = None,
                definitions: Optional[dict] = None,
                sigma_rule: Optional[str] = None,
+               s1_use_powerquery: bool=True,
                label: Optional[str] = None,
                log_dir: Optional[str] = "logs",
                **kwargs) -> list:
@@ -208,6 +205,8 @@ class Surveyor():
 
         if limit:
             kwargs['limit'] = str(limit)
+        if s1_use_powerquery:
+            kwargs["pq"] = True
 
         # instantiate a product class instance based on the product string
         try:
@@ -268,7 +267,7 @@ class Surveyor():
                     
             # if there's sigma rule to be processed
             if sigma_rule:
-                pq_check = True if 'pq' in self.product_args and self.product_args['pq'] else False
+                pq_check = True if s1_use_powerquery else False
                 translated_rules = sigma_translation(product.product, [sigma_rule], pq_check)
                 if len(translated_rules['queries']) != len(sigma_rules):
                     self.log.warning(f"Only {len(translated_rules['queries'])} out of {len(sigma_rules)} were able to be translated.")
