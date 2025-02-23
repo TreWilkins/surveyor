@@ -146,6 +146,7 @@ class Surveyor():
                log_dir: Optional[str] = "logs",
                standardized: bool = True, 
                save_to_json_file: bool = False,
+               save_dir: Optional[str] = "results",
                **kwargs) -> list:
         
         '''
@@ -299,8 +300,8 @@ class Surveyor():
                     self._save_results(nested_results, tag)
 
             if self.results and save_to_json_file:
-                os.makedirs("results", exist_ok=True)
-                output_file = "_".join([current_time, f'{str(self.product_args.get("profile"))}.json'])
+                os.makedirs(save_dir, exist_ok=True)
+                output_file = os.path.join([save_dir, "_".join([current_time, f'{str(self.product_args.get("profile"))}.json'])])
                 
                 with open(output_file, "w") as f:
                     json.dump(self.results, f)
