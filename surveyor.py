@@ -205,8 +205,8 @@ class Surveyor():
 
         if limit:
             kwargs['limit'] = str(limit)
-        if s1_use_powerquery:
-            kwargs["pq"] = True
+        if s1_use_powerquery==True:
+            kwargs["pq"] = s1_use_powerquery
 
         # instantiate a product class instance based on the product string
         try:

@@ -90,7 +90,7 @@ class SentinelOne(Product):
     _query_base: Optional[str] = None
     _pq: bool  # Run queries using PowerQuery instead of Deep Visibility
 
-    def __init__(self, pq: bool = False, **kwargs):
+    def __init__(self, **kwargs):
   
         self.profile = kwargs['profile'] if 'profile' in kwargs else 'default'
         self._site_ids = kwargs.get('site_ids', []) or list()
@@ -100,11 +100,7 @@ class SentinelOne(Product):
         self._token = kwargs['token'] if 'token' in kwargs else None
         self.creds_file = kwargs['creds_file'] if 'creds_file' in kwargs else None
         limit = (kwargs['limit']) if 'limit' in kwargs else 0
-        self._pq = pq # This supports command-line options, will default to Power Query
-
-        # Will check for passed-in arguments; if none are present, it will default to Deep Visibility. Non-command line.
-        if 'deep_visibility' in kwargs:
-            self._pq = False if kwargs.get('deep_visibility', "False") == "True" else True
+        self._pq = True if kwargs.get('pq')==True else False # Use Deep Visibility if PowerQuery is not requested.
 
         # If no conditions match, the default limit will be set to PowerQuery's default of 1000 or to Deep Visibility's Max of 20000.
         if isinstance(limit,str):
