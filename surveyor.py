@@ -301,7 +301,7 @@ class Surveyor():
 
             if self.results and save_to_json_file:
                 os.makedirs(save_dir, exist_ok=True)
-                output_file = os.path.join([save_dir, "_".join([current_time, f'{str(self.product_args.get("profile"))}.json'])])
+                output_file = os.path.join(save_dir, "_".join([current_time, f'{str(self.product_args.get("profile"))}.json']))
                 
                 with open(output_file, "w") as f:
                     json.dump(self.results, f)
