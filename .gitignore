@@ -93,6 +93,7 @@ ENV/
 # Project things
 *.csv
 .carbonblack
+results/*.json
 
 # PyCharm
 # User-specific stuff:

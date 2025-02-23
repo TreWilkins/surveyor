@@ -10,8 +10,8 @@ import os
 from typing import Optional, Union, List
 from datetime import datetime, timezone
 
-from common import Tag, Result, sigma_translation
 from load import get_product_instance
+from common import Tag, Result, sigma_translation
 
 class Surveyor():
     product_args: dict = dict()
@@ -41,6 +41,8 @@ class Surveyor():
                  **kwargs) -> dict:
         
         self.product_args.clear()
+        self.results.clear()
+
         if not product:
             print(f"No product selected, in order to use surveyor please specify a product such as: {self.supported_products}")
         else:
@@ -67,7 +69,7 @@ class Surveyor():
                     args['token'] = token
                 if url:
                     args['url'] = url
-                # Credentials file is not required for CBR, given that the SDK attempts to load from disk by default.\
+                # Credentials file is not required for CbR, given that the SDK attempts to load from disk by default.\
                 # If no credentials can be found or are not passed in as arguments, an exception will be raised
             case'cbc':
                 if cbc_device_group:
@@ -80,7 +82,7 @@ class Surveyor():
                     args['url'] = url
                 if cbc_org_key:
                     args['org_key'] = cbc_org_key
-                    # Credentials file is not required for CBC, given that the SDK attempts to load from disk by default.\
+                    # Credentials file is not required for CbC, given that the SDK attempts to load from disk by default.\
                     #  If no credentials can be found or are not passed in as arguments, an exception will be raised
             case 'dfe':
                 if token:
@@ -142,7 +144,8 @@ class Surveyor():
                s1_use_powerquery: bool = True,
                label: Optional[str] = None,
                log_dir: Optional[str] = "logs",
-               standardized: bool = True,
+               standardized: bool = True, 
+               save_to_json_file: bool = False,
                **kwargs) -> list:
         
         '''
@@ -197,7 +200,8 @@ class Surveyor():
         os.makedirs(log_dir, exist_ok=True)
 
         # create logging file handler
-        log_file_name = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S') + f'.{product}.log'
+        current_time = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
+        log_file_name = current_time + f'.{product}.log'
         handler = logging.FileHandler(os.path.join(log_dir, log_file_name))
         handler.setLevel(logging.DEBUG)
         handler.setFormatter(logging.Formatter(self.log_format))
@@ -293,6 +297,15 @@ class Surveyor():
                 # write any remaining results
                 for tag, nested_results in product.get_results().items():
                     self._save_results(nested_results, tag)
+
+            if self.results and save_to_json_file:
+                os.makedirs("results", exist_ok=True)
+                output_file = "_".join([current_time, f'{str(self.product_args.get("profile"))}.json'])
+                
+                with open(output_file, "w") as f:
+                    json.dump(self.results, f)
+
+                logging.info(f"Saved results to {output_file}")
                     
             return self.results
         
