@@ -149,6 +149,7 @@ class DefenderForEndpoints(Product):
                         timestamp=timestamp, 
                         query=data.get('Query'),
                         program=tag.tag,
+                        profile=self.profile,
                         raw_data=(json.dumps(res))
                         )
                     results.add(result)

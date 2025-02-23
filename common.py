@@ -23,6 +23,7 @@ class Result:
     command_line: str
     timestamp: str
     program: str
+    profile: str
     query: str
     raw_data: Optional[Tuple] = None
 

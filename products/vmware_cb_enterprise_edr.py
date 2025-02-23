@@ -135,6 +135,7 @@ class CbEnterpriseEdr(Product):
                     timestamp = timestamp,
                     query=" ".join(full_query._raw_query),
                     program=tag.tag,
+                    profile=self.profile,
                     raw_data=(json.dumps(deets))
                     )
                 

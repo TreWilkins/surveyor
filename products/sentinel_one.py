@@ -464,7 +464,9 @@ class SentinelOne(Product):
 
                     if self._pq:
                         # PQ returns results in ping response when query is complete
-                        return response_data['data']['data']
+                        event_header = [item['name'] for item in response_data['data']['columns']]
+                        events = [dict(zip(event_header, event)) for event in response_data['data']['data'] if event]
+                        return events
                     else:
                         # DV requires fetching results when query is complete
                         return self._get_all_paginated_data(self._build_url('/web/api/v2.1/dv/events'),
@@ -668,6 +670,7 @@ class SentinelOne(Product):
                     timestamp=timestamp,
                     query=merged_query,
                     program=merged_tag.tag,
+                    profile=self.profile,
                     raw_data=(json.dumps(event))
                     )
 

@@ -75,6 +75,7 @@ class CbResponse(Product):
                     timestamp = self.cbr_convertime_iso8601(proc.start),
                     query=query,
                     program=tag.tag,
+                    profile=self.profile,
                     raw_data=(json.dumps(proc.original_document))
                     )
 
@@ -118,6 +119,7 @@ class CbResponse(Product):
                         command_line=proc.cmdline, 
                         timestamp = proc.start, 
                         program=tag.tag,
+                        profile=self.profile,
                         query=query,
                         raw_data=(json.dumps(proc.original_document))
                         )
