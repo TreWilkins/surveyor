@@ -89,6 +89,7 @@ class SentinelOne(Product):
     _last_request: float = 0.0
     _query_base: Optional[str] = None
     _pq: bool  # Run queries using PowerQuery instead of Deep Visibility
+    _standardized: bool = True
 
     def __init__(self, **kwargs):
   
@@ -101,6 +102,7 @@ class SentinelOne(Product):
         self.creds_file = kwargs['creds_file'] if 'creds_file' in kwargs else None
         limit = (kwargs['limit']) if 'limit' in kwargs else 0
         self._pq = True if kwargs.get('pq')==True else False # Use Deep Visibility if PowerQuery is not requested.
+        self._standardized = False if kwargs.get("standardized")==False else True
 
         # If no conditions match, the default limit will be set to PowerQuery's default of 1000 or to Deep Visibility's Max of 20000.
         if isinstance(limit,str):
@@ -263,7 +265,7 @@ class SentinelOne(Product):
                                     self._site_ids.append(site['id'])
 
                                 if site['accountId'] not in self._account_ids:
-                                    # PowerQuery won't honor Site ID filters unless the parent accousnt ID is also
+                                    # PowerQuery won't honor Site ID filters unless the parent accounts ID is also
                                     # included in the request body
                                     self._account_ids.append(site['accountId'])
                             elif site['accountId'] not in self._account_ids and site['id'] not in self._site_ids:
@@ -630,7 +632,7 @@ class SentinelOne(Product):
             if 'errors' in body and any(('could not parse query' in x['detail'] for x in body['errors'])):
                 raise ValueError(f'S1 could not parse query "{merged_query}"')
 
-            self.log.debug(query_response.json())
+            #self.log.debug(query_response.json())
             query_response.raise_for_status()
 
             query_id = body['data']['queryId']
@@ -650,7 +652,7 @@ class SentinelOne(Product):
                     username = event.get('src.process.user')
                     path = event.get('src.process.image.path')
                     command_line = event.get('src.process.cmdline')
-                    timestamp = self.convert_time_to_iso8601(event.get('src.process.startTime', event.get('timestamp')))
+                    timestamp = event.get('event.time')
                 else:
                     hostname = event.get('endpointName')
                     username = event.get('srcProcUser')
@@ -728,8 +730,7 @@ class SentinelOne(Product):
                         # add base_query filter to merged query string
                         merged_query = f'{self._query_base} AND ({merged_query})'
 
-                    if self._pq:
-                        # PQ seems to not honor site IDs provided in POST request body
+                    if self._pq and self._standardized:
                         if len(self._site_ids):
                             # restrict query to specified sites
                             merged_query = f'({merged_query}) AND ('

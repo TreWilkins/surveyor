@@ -139,9 +139,10 @@ class Surveyor():
                query: Optional[str] = None,
                definitions: Optional[dict] = None,
                sigma_rule: Optional[str] = None,
-               s1_use_powerquery: bool=True,
+               s1_use_powerquery: bool = True,
                label: Optional[str] = None,
                log_dir: Optional[str] = "logs",
+               standardized: bool = True,
                **kwargs) -> list:
         
         '''
@@ -161,6 +162,8 @@ class Surveyor():
             label: (str) - Used for definitions. sigma, and IoC searches. \
                 Use to label the output of data for easier searching. Default None
             log_dir: (str) - Where to store logs on disk.
+            standardized: (bool) - By default, when requesting days, minutes, username, or a hostname during a search, these arguments can be appended to a query which may cause the query to fail. To run a query with no alterations, set standardized to False. This is most useful for freeform queries, if using definition files, sigma rules, or IoC lists, this should not cause any adverse impacts
+            s1_use_powerquery: (bool) - Specify if S1 should use PowerQuery by default instead of Deep Visibility. Default is True.
         Returns:
             list of results
 
@@ -203,10 +206,12 @@ class Surveyor():
         if len(self.product_args) > 0 and isinstance(self.product_args, dict):
             kwargs = self.product_args
 
-        if limit:
+        if isinstance(limit, (str, int)):
             kwargs['limit'] = str(limit)
-        if s1_use_powerquery==True:
-            kwargs["pq"] = s1_use_powerquery
+
+        kwargs["pq"] = s1_use_powerquery if isinstance(s1_use_powerquery, bool) else True
+        
+        kwargs["standardized"] = standardized if isinstance(standardized, bool) else True
 
         # instantiate a product class instance based on the product string
         try:

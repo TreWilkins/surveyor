@@ -57,6 +57,7 @@ class CortexXDR(Product):
     _queries: dict[Tag, list[Query]] = dict()
     _last_request: float = 0.0
     _limit: int = 1000 # Max is 1000 results otherwise have to get the results via stream
+    _standardized: bool = True
 
     def __init__(self, **kwargs):
 
@@ -67,6 +68,7 @@ class CortexXDR(Product):
         self._api_key_id = kwargs['api_key_id'] if 'api_key_id' in kwargs else ''   
         self._url =  kwargs['url'] if 'url' in kwargs else ''
         self._auth_type = kwargs['auth_type'] if 'auth_type' in kwargs else "standard"
+        self._standardized = False if kwargs.get("standardized")==False else True
 
         if self._limit >= int(kwargs.get('limit',0)) > 0:
             self._limit = int(kwargs['limit'])
@@ -179,9 +181,9 @@ class CortexXDR(Product):
                 relative_time_ms = value * 24 * 60 * 60 * 1000
             elif key == 'minutes':
                 relative_time_ms = value * 60 * 1000
-            elif key == 'hostname':
+            elif key == 'hostname' and self._standardized ==True:
                 query_base += f' | filter agent_hostname contains "{value}"'
-            elif key == 'username':
+            elif key == 'username' and self._standardized ==True:
                 # Need to look at both actor and action in case action is actually a filemod,netconn,regmod rather than proc
                 query_base += f' | filter action_process_username contains "{value}" or actor_primary_username contains "{value}"'
             else:
@@ -273,7 +275,9 @@ class CortexXDR(Product):
                     query_string = f'dataset=xdr_data | filter {query.parameter} {query.operator} {str(query.search_value)}'
 
                 query_string += f' {self._base_query}' if self._base_query != '' else ''
-                query_string += f' | fields agent_hostname, action_process_image_path, action_process_username, action_process_image_command_line, actor_process_image_path, actor_primary_username, actor_process_command_line, event_id'
+
+                if self._standardized == True:
+                    query_string += f' | fields agent_hostname, action_process_image_path, action_process_username, action_process_image_command_line, actor_process_image_path, actor_primary_username, actor_process_command_line, event_id'
 
                 # Run that query!
                 params = self._get_default_body()
@@ -308,16 +312,12 @@ class CortexXDR(Product):
 
                 self._results[tag] = list()
                 for event in events:
-                    hostname = event['agent_hostname'] if 'agent_hostname' in event else ''
-
+                    hostname = event.get('agent_hostname')
                     # If the event is not a process execution, we need to see what process initiated the filemod, regmod, netconn, etc.
-                    username = event['action_process_username'] if 'action_process_username' in event else \
-                        event['actor_primary_username']
-                    path = event['action_process_image_path'] if 'action_process_image_path' in event else \
-                        event['actor_process_image_path']
-                    commandline = event['action_process_command_line'] if 'action_process_command_line' in event else \
-                        event['actor_process_command_line']
-                    timestamp = self.cortex_convertime_iso8601(event['_time'])
+                    username = event.get('action_process_username', event.get('actor_primary_username'))
+                    path = event.get('action_process_image_path', event.get('actor_process_image_path'))
+                    commandline = event.get('action_process_command_line', event.get('actor_process_command_line'))
+                    timestamp = self.cortex_convertime_iso8601(event.get('_time'))
 
                     result = Result(
                         hostname=hostname, 

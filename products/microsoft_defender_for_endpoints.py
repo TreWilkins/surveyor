@@ -48,6 +48,7 @@ class DefenderForEndpoints(Product):
     _tenantId: Optional[str] = None 
     _appId: Optional[str] = None
     _appSecret: Optional[str] = None
+    _standardized: bool = True
     
     def __init__(self, **kwargs):
 
@@ -57,6 +58,7 @@ class DefenderForEndpoints(Product):
         self._tenantId = kwargs['tenantId'] if 'tenantId' in kwargs else None
         self._appId = kwargs['appId'] if 'appId' in kwargs else None
         self._appSecret = kwargs['appSecret'] if 'appSecret' in kwargs else None
+        self._standardized = False if kwargs.get("standardized")==False else True
 
         if 100000 >= int(kwargs.get('limit', -1)) > self._limit:
             self._limit = int(kwargs['limit'])
@@ -218,17 +220,17 @@ class DefenderForEndpoints(Product):
 
     def build_query(self, filters: dict) -> str:
         query_base = []
-
-        for key, value in filters.items():
-            if key == 'days':
-                query_base.append(f'| where Timestamp > ago({value}d)')
-            elif key == 'minutes':
-                query_base.append(f'| where Timestamp > ago({value}m)')
-            elif key == 'hostname':
-                query_base.append(f'| where DeviceName contains "{value}"')
-            elif key == 'username':
-                query_base.append(f'| where AccountName contains "{value}"')
-            else:
-                self.log.warning(f'Query filter {key} is not supported by product {self.product}')
+        if self._standardized == True:
+            for key, value in filters.items():
+                if key == 'days':
+                    query_base.append(f'| where Timestamp > ago({value}d)')
+                elif key == 'minutes':
+                    query_base.append(f'| where Timestamp > ago({value}m)')
+                elif key == 'hostname':
+                    query_base.append(f'| where DeviceName contains "{value}"')
+                elif key == 'username':
+                    query_base.append(f'| where AccountName contains "{value}"')
+                else:
+                    self.log.warning(f'Query filter {key} is not supported by product {self.product}')
 
         return ' '.join(query_base)
