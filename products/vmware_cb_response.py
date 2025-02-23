@@ -75,7 +75,7 @@ class CbResponse(Product):
                     timestamp = self.cbr_convertime_iso8601(proc.start),
                     query=query,
                     program=tag.tag,
-                    raw_data=(json.dumps(proc.__dict__))
+                    raw_data=(json.dumps(proc.original_document))
                     )
 
                 results.add(result)
@@ -119,7 +119,7 @@ class CbResponse(Product):
                         timestamp = proc.start, 
                         program=tag.tag,
                         query=query,
-                        raw_data=(json.dumps(proc.__dict__))
+                        raw_data=(json.dumps(proc.original_document))
                         )
                     results.add(result)
                     if self._limit > 0 and len(results)+1 > self._limit:

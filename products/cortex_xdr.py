@@ -327,7 +327,7 @@ class CortexXDR(Product):
                         timestamp=timestamp,
                         query = query_string,
                         program=tag.tag,
-                        raw_data=(event)
+                        raw_data=(json.dumps(event))
                         )
                     self._results[tag].append(result)
                         

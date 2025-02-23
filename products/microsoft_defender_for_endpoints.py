@@ -147,7 +147,7 @@ class DefenderForEndpoints(Product):
                         timestamp=timestamp, 
                         query=data.get('Query'),
                         program=tag.tag,
-                        raw_data=(res)
+                        raw_data=(json.dumps(res))
                         )
                     results.add(result)
             else:

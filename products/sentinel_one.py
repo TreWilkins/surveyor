@@ -670,7 +670,7 @@ class SentinelOne(Product):
                     timestamp=timestamp,
                     query=merged_query,
                     program=merged_tag.tag,
-                    raw_data=(event)
+                    raw_data=(json.dumps(event))
                     )
 
                 self._results[merged_tag].append(result)

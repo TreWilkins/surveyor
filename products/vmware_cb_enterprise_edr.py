@@ -133,7 +133,7 @@ class CbEnterpriseEdr(Product):
                     path=proc_name, 
                     command_line=cmdline, 
                     timestamp = timestamp,
-                    query=full_query.__str__,
+                    query=" ".join(full_query._raw_query),
                     program=tag.tag,
                     raw_data=(json.dumps(deets))
                     )
