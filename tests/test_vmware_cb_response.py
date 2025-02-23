@@ -18,7 +18,7 @@ class MockProcResult:
     path: str
     cmdline: str
     start: str
-    id: str
+    original_document: dict
 
 
 @pytest.fixture
@@ -131,6 +131,6 @@ def test_nested_process_search_limit_option(cbr_product : CbResponse, mocker):
 
 
 def mocked_query_return(query: str):
-    return [MockProcResult('workstation1','username1','path1','cmdline1','start1','id1'),
-            MockProcResult('workstation2','username2','path2','cmdline2','start2','id2'),
-            MockProcResult('workstation3','username3','path3','cmdline3','start3','id3')]
+    return [MockProcResult('workstation1','username1','path1','cmdline1','start1', {}),
+            MockProcResult('workstation2','username2','path2','cmdline2','start2', {}),
+            MockProcResult('workstation3','username3','path3','cmdline3','start3', {})]
