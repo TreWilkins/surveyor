@@ -125,7 +125,7 @@ def test_ioc_file(mocker):
 
     Surveyor("cbr").survey(ioc_list=["127.0.0.1"], ioc_type="ipaddr", label="test_ioc_list")
     mocked_func.assert_called_once()
-    mocked_nested_process_search.assert_called_once_with(Tag("test_ioc_list"), {'ipaddr':['127.0.0.1']}, {})
+    mocked_nested_process_search.assert_called_once_with(Tag("IoC list - test_ioc_list"), {'ipaddr':['127.0.0.1']}, {})
 
 
 def test_ioc_file_with_base_query(mocker):
@@ -138,7 +138,7 @@ def test_ioc_file_with_base_query(mocker):
     Surveyor("cbr").survey(ioc_list=["127.0.0.1"], ioc_type="ipaddr", days=5, hostname="workstation1", username="admin", label="test_ioc_list")
     mocked_func.assert_called_once()
     mocked_nested_process_search.assert_called_once_with(
-        Tag(f'test_ioc_list'), 
+        Tag("IoC list - test_ioc_list"), 
         {'ipaddr':['127.0.0.1']}, 
         {'days':5, 'hostname':'workstation1', 'username':'admin'}
         )

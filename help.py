@@ -3,7 +3,6 @@ import re
 from datetime import datetime, timezone
 
 # regular expression that detects ANSI color codes
-from tqdm import tqdm
 
 ansi_escape_regex = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])', re.VERBOSE)
 

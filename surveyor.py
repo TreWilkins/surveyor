@@ -170,8 +170,6 @@ class Surveyor():
             s1_use_powerquery: (bool) - Specify if S1 should use PowerQuery by default instead of Deep Visibility. Default is True.
         Returns:
             list of results
-
-        
         '''
         
         self.results.clear()
@@ -249,10 +247,10 @@ class Surveyor():
                 for tag, results in product.get_results().items():
                     self._save_results(results, tag)
 
-            # run search based on IOC list
+            # run search based on IoC list
             if ioc_list:
                 ioc_list = [x.strip() for x in ioc_list]
-                label = "IoC List" if not label else label
+                label = f"IoC list{f' - {label}' if label else ''}"
                 product.nested_process_search(Tag(label), {ioc_type: ioc_list}, base_query)
 
                 for tag, results in product.get_results().items():

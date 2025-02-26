@@ -7,7 +7,6 @@ from concurrent.futures import Future
 from math import ceil
 from threading import Event
 
-from tqdm import tqdm
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
@@ -163,7 +162,7 @@ class SentinelOne(Product):
 
     def _get_site_ids(self, site_ids: list, account_ids: list, account_names: list):
         # If either of the following were passed into surveyor, their value will take precedence and the config file will not be used.
-        if not (site_ids or account_ids or account_names):
+        if not any([site_ids, account_ids, account_names]):
             config = configparser.ConfigParser()
             config.read(self.creds_file)
 
@@ -194,9 +193,11 @@ class SentinelOne(Product):
                 counter += 1
                 if counter == 10 or i == len(account_ids) - 1:
                     try:
-                        response = self._get_all_paginated_data(self._build_url(f'/web/api/v2.1/accounts'),
-                                                                params={'states': "active", 'ids': ','.join(temp_list)},
-                                                                add_default_params=False)
+                        response = self._get_all_paginated_data(
+                            url=self._build_url(f'/web/api/v2.1/accounts'),
+                            params={'states': "active", 'ids': ','.join(temp_list)},
+                            add_default_params=False
+                            )
                     except HTTPError as e:
                         if e.response.status_code == 401:
                             raise AuthenticationError('Failed to authenticate to SentinelOne API') from e
@@ -218,9 +219,11 @@ class SentinelOne(Product):
             temp_account_name = list()
             for name in account_names:
                 try:
-                    response = self._get_all_paginated_data(self._build_url('/web/api/v2.1/accounts'),
-                                                            params={'states': "active", 'name': name},
-                                                            add_default_params=False)
+                    response = self._get_all_paginated_data(
+                        url=self._build_url('/web/api/v2.1/accounts'),
+                        params={'states': "active", 'name': name},
+                        add_default_params=False
+                        )
                 except HTTPError as e:
                     if e.response.status_code == 401:
                         raise AuthenticationError('Failed to authenticate to SentinelOne API') from e
@@ -247,10 +250,11 @@ class SentinelOne(Product):
                 counter += 1
                 if counter == 10 or i == len(site_ids) - 1:
                     try:
-                        response = self._get_all_paginated_data(self._build_url('/web/api/v2.1/sites'),
-                                                                params={'state': "active",
-                                                                        'siteIds': ','.join(site_ids)},
-                                                                add_default_params=False)
+                        response = self._get_all_paginated_data(
+                            url=self._build_url('/web/api/v2.1/sites'),
+                            params={'state': "active",'siteIds': ','.join(site_ids)},
+                            add_default_params=False
+                            )
                     except HTTPError as e:
                         if e.response.status_code == 401:
                             raise AuthenticationError('Failed to authenticate to SentinelOne API') from e
@@ -272,7 +276,7 @@ class SentinelOne(Product):
                                 self._site_ids.append(site['id']) 
 
                     counter = 0
-                    temp_list = []
+                    temp_list.clear()
                 i += 1
 
             diff = list(set(site_ids) - set(temp_site_ids))
@@ -287,7 +291,7 @@ class SentinelOne(Product):
         self.log.debug(f'Site IDs: {self._site_ids}')
         self.log.debug(f'Account IDs: {self._account_ids}')
 
-    def _build_url(self, stem: str):
+    def _build_url(self, stem: str) -> str:
         """
         Assemble URL for SentinelOne API query using base URI and URI stem.
         """
@@ -311,7 +315,8 @@ class SentinelOne(Product):
         """
         Get the default header for a SentinelOne API query.
         """
-        return {"Authorization": f"ApiToken {self._token}", "Content-Type": "application/json"}
+        return {
+            "Authorization": f"ApiToken {self._token}", "Content-Type": "application/json"}
 
     def build_query(self, filters: dict) -> Tuple[str, datetime, datetime]:
         to_date = datetime.now(timezone.utc)
@@ -349,10 +354,10 @@ class SentinelOne(Product):
         # therefore we return the from/to dates separately
         return query_base, from_date, to_date
 
-    def _get_all_paginated_data(self, url: str, params: Optional[dict] = None, headers: Optional[dict] = None,
-                                key: str = 'data', after_request: Optional[Callable] = None, limit: int = 1000,
-                                no_progress: bool = True, progress_desc: str = 'Retrieving data',
-                                add_default_params: bool = True) -> list[dict]:
+    def _get_all_paginated_data(self, url: str, params: Optional[dict] = None, 
+                                headers: Optional[dict] = None, key: str = 'data', after_request: Optional[Callable] = None, 
+                                limit: int = 1000, add_default_params: bool = True
+                                ) -> list[dict]:
         """
         Get and return all paginated data from the response, making additional queries if necessary.
         
@@ -368,10 +373,6 @@ class SentinelOne(Product):
 
         :param after_request: Optional callable that is executed after each pagination request. The callable is
         passed the response to the last API call.
-
-        :param no_progress: Suppress progress bar.
-
-        :param progress_desc: Specify description for progress bar.
 
         :param add_default_params: Whether _get_default_body() should be added to parameter set.
 
@@ -394,43 +395,36 @@ class SentinelOne(Product):
         total: int = 0
 
         next_cursor = True
-        with tqdm(desc=progress_desc, disable=not self._tqdm_echo or no_progress) as p_bar:
-            while next_cursor:
-                response = self._session.get(url, params=params, headers=headers)
+        while next_cursor:
+            response = self._session.get(url, params=params, headers=headers)
 
-                if after_request:
-                    # execute after request callback
-                    after_request(response)
+            if after_request:
+                # execute after request callback
+                after_request(response)
 
-                response.raise_for_status()
+            response.raise_for_status()
 
-                call_data = response.json()[key]
+            call_data = response.json()[key]
 
-                if not isinstance(call_data, list):
-                    call_data = [call_data]
-                self.log.debug(f'Got {len(call_data)} results in page')
-                data.extend(call_data)
-                pagination_data = response.json()['pagination']
+            if not isinstance(call_data, list):
+                call_data = [call_data]
+            self.log.debug(f'Got {len(call_data)} results in page')
+            data.extend(call_data)
+            pagination_data = response.json()['pagination']
 
-                # update progress bar
-                if pagination_data['totalItems'] > total:
-                    total = pagination_data['totalItems']
-                    p_bar.reset(total=total)
+            # update progress bar
+            if pagination_data['totalItems'] > total:
+                total = pagination_data['totalItems']
 
-                p_bar.update(len(call_data))
-
-                next_cursor = pagination_data['nextCursor']
-                params['cursor'] = next_cursor
+            next_cursor = pagination_data['nextCursor']
+            params['cursor'] = next_cursor
                 
             return data
 
-    def _get_dv_events(self, query_id: str, cancel_event: Event, p_bar_needed: bool = True) -> list[dict]:
+    def _get_dv_events(self, query_id: str, cancel_event: Event) -> list[dict]:
         """
         Retrieve events associated with a SentinelOne Deep Visibility query ID.
         """
-        p_bar = tqdm(desc='Running query',
-                     disable=not self._tqdm_echo or not p_bar_needed,
-                     total=100)
 
         def errors(_response_data: dict[str, Any]):
             return _response_data['errors'] if self._pq else _response_data['data']['responseError']
@@ -451,7 +445,7 @@ class SentinelOne(Product):
                 query_status_response.raise_for_status()
                 response_data = query_status_response.json()
 
-                p_bar.update((progress := current_progress(response_data)) - last_progress_status)
+                progress = current_progress(response_data) - last_progress_status
                 last_progress_status = progress
 
                 status = current_status(response_data)
@@ -460,8 +454,6 @@ class SentinelOne(Product):
                     if status == 'FAILED':
                         raise ValueError(f'S1 query failed with message "{errors(response_data)}"')
 
-                    p_bar.close()
-
                     if self._pq:
                         # PQ returns results in ping response when query is complete
                         event_header = [item['name'] for item in response_data['data']['columns']]
@@ -469,18 +461,17 @@ class SentinelOne(Product):
                         return events
                     else:
                         # DV requires fetching results when query is complete
-                        return self._get_all_paginated_data(self._build_url('/web/api/v2.1/dv/events'),
-                                                            params={'queryId': query_id},
-                                                            no_progress=False,
-                                                            add_default_params=False,
-                                                            progress_desc='Retrieving query results')
+                        return self._get_all_paginated_data(
+                            url=self._build_url('/web/api/v2.1/dv/events'),
+                            params={'queryId': query_id},
+                            add_default_params=False
+                            )
                 else:
                     # query-status endpoint has a one request per second rate limit
                     time.sleep(1)
 
             return list()
         except Exception as e:
-            p_bar.close()
             raise e
 
     def divide_chunks(self, l: list, n: int):
@@ -551,7 +542,7 @@ class SentinelOne(Product):
                             elif len(terms) > 1:
                                 search_value = f'({search_value})'
                                 operator = 'in contains anycase'
-                            elif not re.findall(r'\w+\.\w+', search_value) and tag.tag.startswith("IOC - "):
+                            elif not re.findall(r'\w+\.\w+', search_value) and tag.tag.startswith("IoC list"):
                                 operator = 'regexp'
                             else:
                                 operator = 'containscis'
@@ -624,10 +615,11 @@ class SentinelOne(Product):
 
             # start deep visibility API call
             url = '/web/api/v2.1/dv/events/pq' if self._pq else '/web/api/v2.1/dv/init-query'
-            query_response = self._session.post(self._build_url(url),
-                                                headers=self._get_default_header(),
-                                                data=json.dumps(params)
-                                                )
+            query_response = self._session.post(
+                url=self._build_url(url),
+                headers=self._get_default_header(),
+                data=json.dumps(params)
+                )
             self._last_request = time.time()
 
             body = query_response.json()
@@ -644,7 +636,8 @@ class SentinelOne(Product):
                 event_header = [item['name'] for item in body['data']['columns']]
                 events = [dict(zip(event_header, event)) for event in body['data']['data'] if event]
             else:
-                events = self._get_dv_events(query_id, p_bar_needed=p_bar_needed, cancel_event=cancel_event)
+                events = self._get_dv_events(query_id, cancel_event=cancel_event)
+                
             self.log.debug(f'Got {len(events)} events')
 
             self._results[merged_tag] = list()
@@ -654,7 +647,7 @@ class SentinelOne(Product):
                     username = event.get('src.process.user')
                     path = event.get('src.process.image.path')
                     command_line = event.get('src.process.cmdline')
-                    timestamp = event.get('event.time')
+                    timestamp = self.convert_time_to_iso8601(event.get('event.time'))
                 else:
                     hostname = event.get('endpointName')
                     username = event.get('srcProcUser')
@@ -701,7 +694,7 @@ class SentinelOne(Product):
         # execute queries in chunks
         # do not chunk if processing an IOC file
         ioc_hunt = list(self._queries.keys())
-        chunk_size = 1 if (len(ioc_hunt) == 1 and ioc_hunt[0].tag.startswith('IOC - ')) else 10
+        chunk_size = 1 if (len(ioc_hunt) == 1 and ioc_hunt[0].tag.startswith('IoC list')) else 10
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=25) as executor:
             futures = list[Future]()
@@ -762,24 +755,17 @@ class SentinelOne(Product):
                             self.log.debug(f'Sleeping for {self._dv_wait} seconds')
                             cancel_event.wait(self._dv_wait)
 
-            p_bar = tqdm(desc='Running queries',
-                    disable=not self._tqdm_echo,
-                    total=len(futures))
-
             try:
                 completed_futures = set[Future]()
                 while not cancel_event.is_set() and len(completed_futures) != len(futures):
                     for future in futures:
                         if future not in completed_futures and future.done():
                             completed_futures.add(future)
-                            p_bar.update()
 
                     cancel_event.wait(1)
             except KeyboardInterrupt:
                 self.log.exception("Caught CTRL-C. Returning what we have . . .")
                 cancel_event.set()
-
-            p_bar.close()
 
         self._queries.clear()
 
