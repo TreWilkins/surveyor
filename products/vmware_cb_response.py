@@ -74,7 +74,7 @@ class CbResponse(Product):
                     command_line=proc.cmdline, 
                     timestamp = self.cbr_convertime_iso8601(proc.start),
                     query=query,
-                    program=tag.tag,
+                    label=tag.tag,
                     profile=self.profile,
                     raw_data=(json.dumps(proc.original_document))
                     )
@@ -117,8 +117,8 @@ class CbResponse(Product):
                         username=proc.username.lower(), 
                         path=proc.path, 
                         command_line=proc.cmdline, 
-                        timestamp = proc.start, 
-                        program=tag.tag,
+                        timestamp=proc.start, 
+                        label=tag.tag,
                         profile=self.profile,
                         query=query,
                         raw_data=(json.dumps(proc.original_document))

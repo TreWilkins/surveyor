@@ -426,17 +426,7 @@ class SentinelOne(Product):
         Retrieve events associated with a SentinelOne Deep Visibility query ID.
         """
 
-        def errors(_response_data: dict[str, Any]):
-            return _response_data['errors'] if self._pq else _response_data['data']['responseError']
-
-        def current_progress(_response_data: dict[str, Any]) -> int:
-            return _response_data['data']['progress'] if self._pq else _response_data['data']['progressStatus']
-
-        def current_status(_response_data: dict[str, Any]) -> int:
-            return _response_data['data']['status'] if self._pq else _response_data['data']['responseState']
-
         try:
-            last_progress_status = 0
             while not cancel_event.is_set():
                 url = '/web/api/v2.1/dv/events/pq-ping' if self._pq else '/web/api/v2.1/dv/query-status'
                 query_status_response = self._session.get(self._build_url(url),
@@ -445,14 +435,15 @@ class SentinelOne(Product):
                 query_status_response.raise_for_status()
                 response_data = query_status_response.json()
 
-                progress = current_progress(response_data) - last_progress_status
-                last_progress_status = progress
+                progress = response_data['data']['progress'] if self._pq else response_data['data']['progressStatus']
+                self.log.debug(f'Progress: {progress}')
 
-                status = current_status(response_data)
+                status = response_data['data']['status'] if self._pq else response_data['data']['responseState']
 
                 if progress == 100 or status == 'FAILED':
                     if status == 'FAILED':
-                        raise ValueError(f'S1 query failed with message "{errors(response_data)}"')
+                        error = response_data['errors'] if self._pq else response_data['data']['responseError']
+                        raise ValueError(f'S1 query failed with message "{error}"')
 
                     if self._pq:
                         # PQ returns results in ping response when query is complete
@@ -582,7 +573,7 @@ class SentinelOne(Product):
         return query_text
 
     def _run_query(self, merged_query: str, start_date: datetime, end_date: datetime, merged_tag: Tag,
-                   cancel_event: Event, p_bar_needed: bool = True) -> None:
+                   cancel_event: Event) -> None:
         try:
             if cancel_event.is_set():
                 return
@@ -626,7 +617,7 @@ class SentinelOne(Product):
             if 'errors' in body and any(('could not parse query' in x['detail'] for x in body['errors'])):
                 raise ValueError(f'S1 could not parse query "{merged_query}"')
 
-            #self.log.debug(query_response.json())
+            self.log.debug(query_response.json())
             query_response.raise_for_status()
 
             query_id = body['data']['queryId']
@@ -662,7 +653,7 @@ class SentinelOne(Product):
                     command_line=command_line,
                     timestamp=timestamp,
                     query=merged_query,
-                    program=merged_tag.tag,
+                    label=merged_tag.tag,
                     profile=self.profile,
                     raw_data=(json.dumps(event))
                     )

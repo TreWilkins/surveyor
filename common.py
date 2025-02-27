@@ -22,7 +22,7 @@ class Result:
     path: str
     command_line: str
     timestamp: str
-    program: str
+    label: str
     profile: str
     query: str
     raw_data: Optional[Tuple] = None

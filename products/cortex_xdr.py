@@ -325,8 +325,8 @@ class CortexXDR(Product):
                         path=path, 
                         command_line=commandline, 
                         timestamp=timestamp,
-                        query = query_string,
-                        program=tag.tag,
+                        query=query_string,
+                        label=tag.tag,
                         profile=self.profile,
                         raw_data=(json.dumps(event))
                         )

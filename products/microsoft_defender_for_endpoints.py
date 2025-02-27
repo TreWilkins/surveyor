@@ -148,7 +148,7 @@ class DefenderForEndpoints(Product):
                         command_line=cmdline,
                         timestamp=timestamp, 
                         query=data.get('Query'),
-                        program=tag.tag,
+                        label=tag.tag,
                         profile=self.profile,
                         raw_data=(json.dumps(res))
                         )
