@@ -148,7 +148,6 @@ class Surveyor():
                standardized: bool = True, 
                save_to_json_file: bool = False,
                save_dir: Optional[str] = "results",
-               local_lambda: bool = False,
                **kwargs) -> list:
         
         '''
@@ -173,9 +172,6 @@ class Surveyor():
         Returns:
             list of results
         '''
-
-        if local_lambda:
-            return self.local_lambda()
         
         self.results.clear()
         
@@ -336,7 +332,11 @@ class Surveyor():
     def local_lambda(self, event:dict = None, product_args: dict = None, survey: dict = None) -> Union[requests.Response, None]:
 
         if not event and not all([product_args,survey]):
-            raise ValueError("To run Surveyor an event dictionary containing an initialization and survey structure must be present. You can supply an event dict with both nested structured, or supply them individually by passing both the `product_args` and `survey` arguments.")
+            raise ValueError("To run Surveyor an event dictionary containing an\
+                initialization and survey structure must be present. You can\
+                supply an event dict with both nested structured, or supply\
+                them individually by passing both the `product_args` and\
+                `survey` arguments.")
         elif product_args and survey:
             event=dict(init=product_args, args=survey)
         elif not all([event.get("init"), event.get("args")]):
