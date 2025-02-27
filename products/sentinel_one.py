@@ -740,7 +740,7 @@ class SentinelOne(Product):
                     
                     self.log.debug(f'Appending query to executor: {merged_query}')
                     futures.append(executor.submit(self._run_query, merged_query, start_date, end_date, merged_tag,
-                                                cancel_event, not self._pq))
+                                                cancel_event))
                     if not self._pq:
                         # ensure we do not submit more than one request every 60 seconds to comply with rate limit
                             self.log.debug(f'Sleeping for {self._dv_wait} seconds')
