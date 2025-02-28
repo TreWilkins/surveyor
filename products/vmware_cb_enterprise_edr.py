@@ -121,18 +121,12 @@ class CbEnterpriseEdr(Product):
             for proc in process.where(full_query):
                 deets = proc.get_details()
                 
-                hostname = deets.get('device_name')
-                user = deets['process_username'][0] if 'process_username' in deets else 'None'
-                proc_name = deets.get('process_name')
-                cmdline = deets['process_cmdline'][0] if 'process_cmdline' in deets else 'None'
-                timestamp = deets.get('process_start_time', deets.get('device_timestamp'))
-                
                 result = Result(
-                    hostname=hostname, 
-                    username=user, 
-                    path=proc_name, 
-                    command_line=cmdline, 
-                    timestamp=timestamp,
+                    hostname=deets.get('device_name'), 
+                    username=deets['process_username'][0] if 'process_username' in deets else 'None', 
+                    path=deets.get('process_name'), 
+                    command_line=deets['process_cmdline'][0] if 'process_cmdline' in deets else 'None', 
+                    timestamp=deets.get('process_start_time', deets.get('device_timestamp')),
                     query=" ".join(full_query._raw_query),
                     label=tag.tag,
                     profile=self.profile,

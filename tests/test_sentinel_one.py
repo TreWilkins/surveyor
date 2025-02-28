@@ -362,13 +362,13 @@ def test_process_queries_dv(s1_product : SentinelOne, mocker):
              'containscis rundll32.exe OR ProcessName containscis wsl.exe OR ProcessName containscis regsvr32.exe ' + 
              'OR ProcessName containscis svchost.exe OR ProcessName containscis notepad.exe OR ProcessName containscis ' + 
              'explorer.exe OR ProcessName containscis firefox.exe OR ProcessName containscis chrome.exe', 
-             ANY, ANY, Tag('valueA', data=None), ANY, True),
-        call('ProcessName containscis iexplore.exe', ANY, ANY, Tag('valueA', data=None), ANY, True),
+             ANY, ANY, Tag('valueA', data=None), ANY),
+        call('ProcessName containscis iexplore.exe', ANY, ANY, Tag('valueA', data=None), ANY),
         call('DNS containscis google.com OR DNS containscis microsoft.com OR DNS containscis amazon.com OR DNS containscis bing.com ' + 
              'OR DNS containscis yahoo.com OR DNS containscis github.com OR DNS containscis virustotal.com OR DNS containscis facebook.com ' + 
              'OR DNS containscis twitter.com OR DNS containscis spotify.com', 
-             ANY, ANY, Tag('valueB', data=None), ANY, True),
-        call('DNS containscis apple.com', ANY, ANY, Tag('valueB', data=None), ANY, True)
+             ANY, ANY, Tag('valueB', data=None), ANY),
+        call('DNS containscis apple.com', ANY, ANY, Tag('valueB', data=None), ANY)
     ])
 
 def test_process_queries_pq(s1_product : SentinelOne, mocker):
@@ -419,13 +419,13 @@ def test_process_queries_pq(s1_product : SentinelOne, mocker):
              'src.process.parent.image.path, tgt.process.displayname, tgt.process.image.path, ' +
              'tgt.file.path, tgt.file.sha1, tgt.file.sha256, url.address, src.ip.address, ' +
              'dst.ip.address, event.dns.request, event.type', 
-             ANY, ANY, Tag('valueA', data=None), ANY, False),
+             ANY, ANY, Tag('valueA', data=None), ANY),
         call('src.process.name contains iexplore.exe | group count() by endpoint.name, src.process.user, ' +
              'src.process.image.path, src.process.cmdline, event.time, ' +
              'site.id, site.name, src.process.storyline.id, src.process.displayname, ' +
              'src.process.parent.image.path, tgt.process.displayname, tgt.process.image.path, ' +
              'tgt.file.path, tgt.file.sha1, tgt.file.sha256, url.address, src.ip.address, ' +
-             'dst.ip.address, event.dns.request, event.type',  ANY, ANY, Tag('valueA', data=None), ANY, False),
+             'dst.ip.address, event.dns.request, event.type',  ANY, ANY, Tag('valueA', data=None), ANY),
         call('event.dns.request contains google.com OR event.dns.request contains microsoft.com OR event.dns.request contains amazon.com OR event.dns.request contains bing.com ' + 
              'OR event.dns.request contains yahoo.com OR event.dns.request contains github.com OR event.dns.request contains virustotal.com OR event.dns.request contains facebook.com ' + 
              'OR event.dns.request contains twitter.com OR event.dns.request contains spotify.com ' + 
@@ -435,13 +435,13 @@ def test_process_queries_pq(s1_product : SentinelOne, mocker):
              'src.process.parent.image.path, tgt.process.displayname, tgt.process.image.path, ' +
              'tgt.file.path, tgt.file.sha1, tgt.file.sha256, url.address, src.ip.address, ' +
              'dst.ip.address, event.dns.request, event.type', 
-             ANY, ANY, Tag('valueB', data=None), ANY, False),
+             ANY, ANY, Tag('valueB', data=None), ANY),
         call('event.dns.request contains apple.com | group count() by endpoint.name, src.process.user, ' +
              'src.process.image.path, src.process.cmdline, event.time, ' +
              'site.id, site.name, src.process.storyline.id, src.process.displayname, ' +
              'src.process.parent.image.path, tgt.process.displayname, tgt.process.image.path, ' +
              'tgt.file.path, tgt.file.sha1, tgt.file.sha256, url.address, src.ip.address, ' +
-             'dst.ip.address, event.dns.request, event.type',  ANY, ANY, Tag('valueB', data=None), ANY, False)
+             'dst.ip.address, event.dns.request, event.type',  ANY, ANY, Tag('valueB', data=None), ANY)
     ])
 
 def test_process_queries_pq_single_site_id(s1_product : SentinelOne, mocker):
@@ -468,7 +468,7 @@ def test_process_queries_pq_single_site_id(s1_product : SentinelOne, mocker):
              'src.process.parent.image.path, tgt.process.displayname, tgt.process.image.path, ' +
              'tgt.file.path, tgt.file.sha1, tgt.file.sha256, url.address, src.ip.address, ' +
              'dst.ip.address, event.dns.request, event.type', 
-             ANY, ANY, Tag('valueA', data=None), ANY, False)
+             ANY, ANY, Tag('valueA', data=None), ANY)
     ])
 
 def test_process_queries_pq_multiple_site_ids(s1_product : SentinelOne, mocker):
@@ -495,5 +495,5 @@ def test_process_queries_pq_multiple_site_ids(s1_product : SentinelOne, mocker):
              'src.process.parent.image.path, tgt.process.displayname, tgt.process.image.path, ' +
              'tgt.file.path, tgt.file.sha1, tgt.file.sha256, url.address, src.ip.address, ' +
              'dst.ip.address, event.dns.request, event.type', 
-             ANY, ANY, Tag('valueA', data=None), ANY, False)
+             ANY, ANY, Tag('valueA', data=None), ANY)
     ])

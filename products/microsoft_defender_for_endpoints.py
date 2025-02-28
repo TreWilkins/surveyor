@@ -5,6 +5,7 @@ import os
 import requests
 from typing import Union,Optional
 from common import Product, Tag, Result
+from datetime import datetime, timezone
 
 PARAMETER_MAPPING: dict[str, dict[str, Union[str, list[str]]]] = {
     'process_name': {'table':'DeviceProcessEvents','field':'FolderPath',
@@ -121,32 +122,13 @@ class DefenderForEndpoints(Product):
 
             if response.status_code == 200:
                 for res in response.json()["Results"]:
-                    
-                    hostname = res['DeviceName'] if 'DeviceName' in res else 'Unknown'
-                    
-                    if 'AccountName' in res or 'InitiatingProcessAccountName' in res:
-                        username = res['AccountName'] if 'AccountName' in res else res['InitiatingProcessAccountName']
-                    else:
-                        username = 'Unknown'
-                    
-                    if 'ProcessCommandLine' in res or 'InitiatingProcessCommandLine' in res:
-                        cmdline = res['ProcessCommandLine'] if 'ProcessCommandLine' in res else res['InitiatingProcessCommandLine']
-                    else:
-                        cmdline = 'Unknown'
-                    
-                    if 'FolderPath' in res or 'InitiatingProcessFolderPath' in res:
-                        proc_name = res['FolderPath'] if 'FolderPath' in res else res['InitiatingProcessFolderPath']
-                    else:
-                        proc_name = 'Unknown'
-
-                    timestamp = res['Timestamp'] if 'Timestamp' in res else 'Unknown'
 
                     result = Result(
-                        hostname=hostname, 
-                        username=username, 
-                        path=proc_name, 
-                        command_line=cmdline,
-                        timestamp=timestamp, 
+                        hostname=res.get('DeviceName'), 
+                        username=res.get('AccountName', res.get('InitiatingProcessAccountName')), 
+                        path=res.get('FolderPath', res.get('InitiatingProcessFolderPath')), 
+                        command_line=res.get('ProcessCommandLine',res.get('InitiatingProcessCommandLine')),
+                        timestamp=res.get('Timestamp', datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')), # If timestamp is not present, return current time.
                         query=data.get('Query'),
                         label=tag.tag,
                         profile=self.profile,

@@ -67,19 +67,7 @@ class CbResponse(Product):
         try:
             # noinspection PyUnresolvedReferences
             for proc in self._conn.select(Process).where(query):
-                result = Result(
-                    hostname=proc.hostname.lower(), 
-                    username=proc.username.lower(), 
-                    path=proc.path, 
-                    command_line=proc.cmdline, 
-                    timestamp = self.cbr_convertime_iso8601(proc.start),
-                    query=query,
-                    label=tag.tag,
-                    profile=self.profile,
-                    raw_data=(json.dumps(proc.original_document))
-                    )
-
-                results.add(result)
+                results.add(self._format_result(proc, tag, query))
 
                 if self._limit > 0 and len(results)+1 > self._limit:
                         break
@@ -112,18 +100,7 @@ class CbResponse(Product):
                 self.log.debug(f'Query: {query}')
                 # noinspection PyUnresolvedReferences
                 for proc in self._conn.select(Process).where(query):
-                    result = Result(
-                        hostname=proc.hostname.lower(), 
-                        username=proc.username.lower(), 
-                        path=proc.path, 
-                        command_line=proc.cmdline, 
-                        timestamp=proc.start, 
-                        label=tag.tag,
-                        profile=self.profile,
-                        query=query,
-                        raw_data=(json.dumps(proc.original_document))
-                        )
-                    results.add(result)
+                    results.add(self._format_result(proc, tag, query))
                     if self._limit > 0 and len(results)+1 > self._limit:
                         break
                     
@@ -139,7 +116,6 @@ class CbResponse(Product):
         time = str(time)
         
         try:
-            # Convert the input string to a datetime object
             time = datetime.strptime(time, "%Y-%m-%d %H:%M:%S.%f")
         except ValueError:
             try:
@@ -148,3 +124,16 @@ class CbResponse(Product):
                 return time
         
         return time
+    
+    def _format_result(self, proc:Process, tag:Tag, query:str) -> Result:
+        return Result(
+            hostname=proc.hostname.lower(), 
+            username=proc.username.lower(), 
+            path=proc.path, 
+            command_line=proc.cmdline, 
+            timestamp=self.cbr_convertime_iso8601(proc.start), 
+            label=tag.tag,
+            profile=self.profile,
+            query=query,
+            raw_data=(json.dumps(proc.original_document))
+            )

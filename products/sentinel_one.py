@@ -10,7 +10,7 @@ from threading import Event
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
-from typing import Optional, Tuple, Callable, Any, Union
+from typing import Optional, Tuple, Callable
 import re
 
 import requests
@@ -770,15 +770,14 @@ class SentinelOne(Product):
 
         return self._results
     
-    def convert_time_to_iso8601(self, time:str) -> Union[str,None]:
+    def convert_time_to_iso8601(self, time:str) -> str:
     
         try: 
             timestamp_seconds = int(time) / 1000
-            # Create a datetime object from the timestamp in seconds
             dt = datetime.fromtimestamp(timestamp_seconds, tz=timezone.utc)
-            # Format the datetime object as a string in the desired format
-            formatted_date = dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-            return formatted_date
+            return dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     
         except Exception as e:
             self.log.info(f'Error" {e}, for time {time}')
+
+        return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')

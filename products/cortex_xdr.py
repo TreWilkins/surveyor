@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 import secrets
 import hashlib
 import string
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple
 
 import requests
 from requests.adapters import HTTPAdapter
@@ -312,19 +312,13 @@ class CortexXDR(Product):
 
                 self._results[tag] = list()
                 for event in events:
-                    hostname = event.get('agent_hostname')
-                    # If the event is not a process execution, we need to see what process initiated the filemod, regmod, netconn, etc.
-                    username = event.get('action_process_username', event.get('actor_primary_username'))
-                    path = event.get('action_process_image_path', event.get('actor_process_image_path'))
-                    commandline = event.get('action_process_command_line', event.get('actor_process_command_line'))
-                    timestamp = self.cortex_convertime_iso8601(event.get('_time'))
 
                     result = Result(
-                        hostname=hostname, 
-                        username=username, 
-                        path=path, 
-                        command_line=commandline, 
-                        timestamp=timestamp,
+                        hostname=event.get('agent_hostname'), 
+                        username=event.get('action_process_username', event.get('actor_primary_username')), 
+                        path=event.get('action_process_image_path', event.get('actor_process_image_path')), 
+                        command_line=event.get('action_process_command_line', event.get('actor_process_command_line')), 
+                        timestamp=self.cortex_convertime_iso8601(event.get('_time')),
                         query=query_string,
                         label=tag.tag,
                         profile=self.profile,
@@ -344,15 +338,15 @@ class CortexXDR(Product):
 
         return self._results
     
-    def cortex_convertime_iso8601(self, time:str) -> Union[str, None]:
+    def cortex_convertime_iso8601(self, time:str) -> str:
     
         try: 
             timestamp_seconds = int(time) / 1000
-            # Create a datetime object from the timestamp in seconds
             dt = datetime.fromtimestamp(timestamp_seconds, tz=timezone.utc)
-            # Format the datetime object as a string in the desired format
-            formatted_date = dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-            return formatted_date
+            return dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
     
         except Exception as e:
-            self.log.info(f'Error" {e}, for time {time}')
+            self.log.info(f'Error" {e}, for time {time}.')
+
+        # Return current time
+        return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
