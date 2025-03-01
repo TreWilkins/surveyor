@@ -16,9 +16,8 @@ from load import get_product_instance
 from common import Tag, Result, sigma_translation
 
 class Surveyor():
-    product_args: dict = dict()
+    product_args: dict = None
     log: logging.Logger = None
-    results: list = list()
     supported_products: tuple = ('cbr', 'cbc', 'dfe', 'cortex', 's1')
     log_format = '[%(asctime)s] [%(levelname)-8s] [%(name)-36s] [%(filename)-20s:%(lineno)-4s] %(message)s'
 
@@ -42,8 +41,8 @@ class Surveyor():
                  s1_account_names: Optional[List[str]] = None,
                  **kwargs) -> dict:
         
-        self.product_args.clear()
-        self.results.clear()
+        if self.product_args:
+            self.product_args = None
 
         if not product:
             print(f"No product selected, in order to use surveyor please specify a product such as: {self.supported_products}")
@@ -179,7 +178,7 @@ class Surveyor():
             list of results
         '''
         
-        self.results.clear()
+        collected_results = list()
         
         if str(self.product_args.get('product')) not in self.supported_products:
             raise Exception(f"product argument is required. Be sure to init the Surveyor class with a supported product {self.supported_products}")
@@ -207,7 +206,7 @@ class Surveyor():
 
         # create logging file handler
         current_time = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
-        log_file_name = current_time + f'.{product_str}.log'
+        log_file_name = current_time + f'.{product_str}_{os.urandom(6).hex()}_{self.product_args.get('profile')}.log'
         handler = logging.FileHandler(os.path.join(log_dir, log_file_name))
         handler.setLevel(logging.DEBUG)
         handler.setFormatter(logging.Formatter(self.log_format))
@@ -256,7 +255,7 @@ class Surveyor():
                 product.process_search(Tag(label), base_query, query)
 
                 for tag, results in product.get_results().items():
-                    self._save_results(results, tag)
+                    collected_results.extend(self._save_results(results, tag))
 
             # run search based on IoC list
             if ioc_list:
@@ -270,7 +269,7 @@ class Surveyor():
                 product.nested_process_search(Tag(label, source_file), {ioc_type: ioc_list}, base_query)
 
                 for tag, results in product.get_results().items():
-                    self._save_results(results, tag)
+                    collected_results.extend(self._save_results(results, tag))
                         
             # run search against definition
             if definition:
@@ -298,14 +297,14 @@ class Surveyor():
                     if product.has_results():
                         # write results as they become available
                         for tag, nested_results in product.get_results(final_call=False).items():
-                            self._save_results(nested_results, tag)
+                            collected_results.extend(self._save_results(nested_results, tag))
                             
                         # ensure results are only written once
                         product.clear_results()
 
                 # write any remaining results
                 for tag, nested_results in product.get_results().items():
-                    self._save_results(nested_results, tag)
+                    collected_results.extend(self._save_results(nested_results, tag))
                     
             # if there's sigma rule to be processed
             if sigma_rule:
@@ -323,14 +322,14 @@ class Surveyor():
                     if product.has_results():
                         # write results as they become available
                         for tag, nested_results in product.get_results(final_call=False).items():
-                            self._save_results(nested_results, tag)
+                            collected_results.extend(self._save_results(nested_results, tag))
                         
                         # ensure results are only written once
                         product.clear_results()
 
                 # write any remaining results
                 for tag, nested_results in product.get_results().items():
-                    self._save_results(nested_results, tag)
+                    collected_results.extend(self._save_results(nested_results, tag))
 
             if hunt_query_file:
                 queries = []
@@ -363,20 +362,20 @@ class Surveyor():
                         product.process_search(Tag(label, hunt_query_file), base_query, query)
 
                         for tag, results in product.get_results().items():
-                            self._save_results(results, tag)
+                            collected_results.extend(self._save_results(results, tag))
 
-            if self.results:
-                logging.info(f"Total results: {len(self.results)}")
+            if collected_results:
+                logging.info(f"Total results: {len(collected_results)}")
                 if save_to_json_file:
                     os.makedirs(save_dir, exist_ok=True)
                     output_file = os.path.join(save_dir, "_".join([current_time, f'{str(self.product_args.get("profile"))}.json']))
                     
                     with open(output_file, "w") as f:
-                        json.dump(self.results, f)
+                        json.dump(collected_results, f)
 
                     logging.info(f"Saved results to {output_file}")
                     
-            return self.results
+            return collected_results
         
         except KeyboardInterrupt:
             self.log.error("Caught CTRL-C. Exiting...")
@@ -393,9 +392,9 @@ class Surveyor():
             tag = tag[0]
 
         self.log.info(f"-->{tag.tag}: {len(results)} results")
-       
-        results = [result.__dict__ for result in results]
-        self.results.extend(results)
+
+        results = [result.__dict__ for result in results] if results else []
+        return results
 
 
 def local_lambda(event:dict = None, product_args: dict = None, survey: dict = None) -> Union[requests.Response, None]:
