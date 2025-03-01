@@ -350,13 +350,13 @@ class Surveyor():
                     if not set(["title", "description", "platforms"]).issubset(data.keys()):
                         self.log.error("The YAML file must contain the following keys: title, description, and platforms.")
                     for i in data["platforms"]:
-                        if i.get(product) and isinstance(i[product], list):
-                            queries.extend(i[product])
-                        elif list(i.keys())[0].startswith(product) and product == "s1":
+                        if i.get(self.product_args['product']) and isinstance(i[self.product_args['product']], list):
+                            queries.extend(i[self.product_args['product']])
+                        elif list(i.keys())[0].startswith(self.product_args['product']) and self.product_args['product'] == "s1":
                             queries.append(i)
 
                     if not queries:
-                        self.log.error(f"No queries found for {product}. Skipping.")
+                        self.log.error(f"No queries found for {self.product_args['product']}. Skipping.")
 
                     label = data.get("title") if not label else label
                     for query in queries:
