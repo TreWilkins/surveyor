@@ -184,7 +184,7 @@ class Surveyor():
         if str(self.product_args.get('product')) not in self.supported_products:
             raise Exception(f"product argument is required. Be sure to init the Surveyor class with a supported product {self.supported_products}")
         else:
-            product = self.product_args['product']
+            product_str = self.product_args['product']
             del self.product_args['product'] # remove product key from product_args after setting product
 
         if ioc_list and ioc_type is None:
@@ -195,7 +195,7 @@ class Surveyor():
 
         # instantiate a logger
         self.log = logging.getLogger('surveyor')
-        logging.debug(f'Product: {product}')
+        logging.debug(f'Product: {product_str}')
 
         # configure logging
         root = logging.getLogger()
@@ -207,7 +207,7 @@ class Surveyor():
 
         # create logging file handler
         current_time = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
-        log_file_name = current_time + f'.{product}.log'
+        log_file_name = current_time + f'.{product_str}.log'
         handler = logging.FileHandler(os.path.join(log_dir, log_file_name))
         handler.setLevel(logging.DEBUG)
         handler.setFormatter(logging.Formatter(self.log_format))
@@ -229,7 +229,7 @@ class Surveyor():
 
         # instantiate a product class instance based on the product string
         try:
-            product = get_product_instance(product, **kwargs)
+            product = get_product_instance(product_str, **kwargs)
         except ValueError as e:
             self.log.exception(e)
             raise Exception(str(e))
@@ -350,13 +350,13 @@ class Surveyor():
                     if not set(["title", "description", "platforms"]).issubset(data.keys()):
                         self.log.error("The YAML file must contain the following keys: title, description, and platforms.")
                     for i in data["platforms"]:
-                        if i.get(self.product_args['product']) and isinstance(i[self.product_args['product']], list):
-                            queries.extend(i[self.product_args['product']])
-                        elif list(i.keys())[0].startswith(self.product_args['product']) and self.product_args['product'] == "s1":
+                        if i.get(product_str) and isinstance(i[product_str], list):
+                            queries.extend(i[product_str])
+                        elif list(i.keys())[0].startswith(product_str) and product_str == "s1":
                             queries.append(i)
 
                     if not queries:
-                        self.log.error(f"No queries found for {self.product_args['product']}. Skipping.")
+                        self.log.error(f"No queries found for {product_str}. Skipping.")
 
                     label = data.get("title") if not label else label
                     for query in queries:
