@@ -398,25 +398,25 @@ class Surveyor():
         self.results.extend(results)
 
 
-    def local_lambda(self, event:dict = None, product_args: dict = None, survey: dict = None) -> Union[requests.Response, None]:
+def local_lambda(event:dict = None, product_args: dict = None, survey: dict = None) -> Union[requests.Response, None]:
 
-        if not event and not all([product_args,survey]):
-            raise ValueError("To run Surveyor an event dictionary containing an\
-                initialization and survey structure must be present. You can\
-                supply an event dict with both nested structured, or supply\
-                them individually by passing both the `product_args` and\
-                `survey` arguments.")
-        elif product_args and survey:
-            event=dict(init=product_args, args=survey)
-        elif not all([event.get("init"), event.get("args")]):
-            raise ValueError("Necessary arguments not passed to use Surveyor. Please ensure credentials are provided, along with search criteira.")
+    if not event and not all([product_args,survey]):
+        raise ValueError("To run Surveyor an event dictionary containing an\
+            initialization and survey structure must be present. You can\
+            supply an event dict with both nested structured, or supply\
+            them individually by passing both the `product_args` and\
+            `survey` arguments.")
+    elif product_args and survey:
+        event=dict(init=product_args, args=survey)
+    elif not all([event.get("init"), event.get("args")]):
+        raise ValueError("Necessary arguments not passed to use Surveyor. Please ensure credentials are provided, along with search criteira.")
 
-        url = os.getenv("SURVEYOR_URL", "http://localhost:9000/2015-03-31/functions/function/invocations")
-        try:
-            r = requests.post(url=url, json=event)
-            return r
-        except (ConnectionRefusedError,Exception) as e:
-            if not os.getenv("SURVEYOR_URL"):
-                print(f"Ensure the SURVEYOR_URL environment variable is set to {url}. Error: {e}")
-            else:
-                print(f"Ensure the docker container is running at {url}. Error: {e}")
+    url = os.getenv("SURVEYOR_URL", "http://localhost:9000/2015-03-31/functions/function/invocations")
+    try:
+        r = requests.post(url=url, json=event)
+        return r
+    except (ConnectionRefusedError,Exception) as e:
+        if not os.getenv("SURVEYOR_URL"):
+            print(f"Ensure the SURVEYOR_URL environment variable is set to {url}. Error: {e}")
+        else:
+            print(f"Ensure the docker container is running at {url}. Error: {e}")
