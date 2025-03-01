@@ -268,6 +268,7 @@ class CortexXDR(Product):
 
     def _process_queries(self) -> None:
         for tag, queries in self._queries.items():
+            results = []
             for query in queries:
                 if query.full_query is not None:
                     query_string = query.full_query
@@ -325,7 +326,9 @@ class CortexXDR(Product):
                         source=tag.source,
                         raw_data=(json.dumps(event))
                         )
-                    self._results[tag].append(result)
+                    results.append(result)
+
+            self._results[tag].extend(results)
                         
         self._queries.clear()
 
@@ -345,9 +348,6 @@ class CortexXDR(Product):
             timestamp_seconds = int(time) / 1000
             dt = datetime.fromtimestamp(timestamp_seconds, tz=timezone.utc)
             return dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-    
-        except Exception as e:
-            self.log.info(f'Error" {e}, for time {time}.')
-
-        # Return current time
-        return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+        except Exception:
+            # Return current time
+            return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')

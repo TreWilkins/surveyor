@@ -110,7 +110,7 @@ class Surveyor():
                         args['auth_type'] = cortex_auth_type
                     else:
                         raise ValueError("Invalid auth_type specified for Cortex, please provide either 'standard' or 'advanced'")
-                if not any([args.get('creds_file'), (args.get('token') and args.get('url') and args.get('api_key_id'))]):
+                if not any([args.get('creds_file'), (args.get('api_key') and args.get('url') and args.get('api_key_id'))]):
                     raise Exception("Cortex requires either a creds_file or token (api_key), api_key_id, and url to be specified")
             case 's1':
                 if s1_site_ids:
