@@ -1,0 +1,25 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IPython Notebook
+.ipynb_checkpoints
+# Ignore notebooks not intended for demonstration at the root directory
+/*.ipynb
+
+# Local logs
+*.log
+
+# Results
+results/*.json
+
+# dotenv
+.env
+
+# virtualenv
+venv/
+ENV/
+
+# Dockerfile
+Dockerfile
