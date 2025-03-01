@@ -322,6 +322,7 @@ class CortexXDR(Product):
                         query=query_string,
                         label=tag.tag,
                         profile=self.profile,
+                        source=tag.source,
                         raw_data=(json.dumps(event))
                         )
                     self._results[tag].append(result)

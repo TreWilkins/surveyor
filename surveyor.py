@@ -4,6 +4,7 @@ import sys
 if sys.version_info.major == 3 and sys.version_info.minor < 10:
     raise Exception(f'Python 3.10+ is required to run Surveyor (current: {sys.version_info.major}.{sys.version_info.minor})')
 
+import yaml
 import json
 import logging
 import requests
@@ -137,16 +138,17 @@ class Surveyor():
                minutes: Optional[int] = None,
                username: Optional[str] = None,
                limit: Optional[int] = None,
-               ioc_list: Optional[list] = None,
+               ioc_list: Union[list, str] = None,
                ioc_type: Optional[str] = None,
                query: Optional[str] = None,
-               definitions: Optional[dict] = None,
+               definition: Union[dict, str] = None,
+               hunt_query_file: Optional[str] = None,
                sigma_rule: Optional[str] = None,
                s1_use_powerquery: bool = True,
                label: Optional[str] = None,
                log_dir: Optional[str] = "logs",
-               standardized: bool = True, 
                save_to_json_file: bool = False,
+               standardized: bool = True, 
                save_dir: Optional[str] = "results",
                **kwargs) -> list:
         
@@ -160,13 +162,17 @@ class Surveyor():
             username: (str) - username to search for. Default all.
             limit: (str) -number of results to return. \
                 Default to products default value.
-            ioc_list: (list) - IoCs to search want to search for. Default None
-            query: (str) - Query to search. Default None
-            definition: (dict)- JSON `defintions` to search for.
-            sigma_rule: (str[yaml]) - str of sigma rule. Default None.
+            ioc_list: (list, str) - IoCs to search want to search for. Default None
+            ioc_type: (str) - The type of IoCs provided (ipaddr, sha256, md5, domain).
+            query: (str) - Query to search. If sourcing from file, provide path to file.
+            definition: (dict, str) - JSON `definitions` to search for. If sourcing from file, provide path unless the file exists in the projects `definitions` directory.
+            hunt_query_file: (str) - Provide path to hunt query file (YAML). Will auto-resolve files existing in the `hunt_queries` directory of the projects folder. 
+            sigma_rule: (str[yaml], str) - str of sigma rule, or path to file.
             label: (str) - Used for definitions. sigma, and IoC searches. \
                 Use to label the output of data for easier searching. Default None
             log_dir: (str) - Where to store logs on disk.
+            save_to_json_file: str - Save results to disk. Default False.
+            save_dir: str - Directory where results will be saved. Defauly `results` of the project folder.
             standardized: (bool) - By default, when requesting days, minutes, username, or a hostname during a search, these arguments can be appended to a query which may cause the query to fail. To run a query with no alterations, set standardized to False. This is most useful for freeform queries, if using definition files, sigma rules, or IoC lists, this should not cause any adverse impacts
             s1_use_powerquery: (bool) - Specify if S1 should use PowerQuery by default instead of Deep Visibility. Default is True.
         Returns:
@@ -209,6 +215,10 @@ class Surveyor():
 
         if len(self.product_args) > 0 and isinstance(self.product_args, dict):
             kwargs = self.product_args
+        
+        if hunt_query_file:
+            # If running a hunt query, do not append anything additional to a query that may cause errors.
+            standardized = False
 
         if isinstance(limit, (str, int)):
             kwargs['limit'] = str(limit)
@@ -250,17 +260,40 @@ class Surveyor():
 
             # run search based on IoC list
             if ioc_list:
+                source_file = os.path.basename(ioc_list) if isinstance(ioc_list, str) and os.path.isfile(ioc_list) else None
+                if source_file:
+                    with open(source_file) as iocs:
+                        ioc_list = iocs.readlines()
+
                 ioc_list = [x.strip() for x in ioc_list]
                 label = f"IoC list{f' - {label}' if label else ''}"
-                product.nested_process_search(Tag(label), {ioc_type: ioc_list}, base_query)
+                product.nested_process_search(Tag(label, source_file), {ioc_type: ioc_list}, base_query)
 
                 for tag, results in product.get_results().items():
                     self._save_results(results, tag)
                         
-            # run search against definition files and write to csv
-            if definitions and isinstance(definitions, dict):
-                for program, criteria in definitions.items():
-                    product.nested_process_search(Tag(program), criteria, base_query)
+            # run search against definition
+            if definition:
+                source_file = None
+                if isinstance(definition, str):
+                    if not os.path.exists(definition):
+                        repo_deffile: str = os.path.join(os.path.dirname(__file__), 'definitions', hunt_query_file)
+                        if not repo_deffile.endswith('.json'):
+                            repo_deffile = repo_deffile + '.json'
+
+                        if os.path.isfile(repo_deffile):
+                            self.log.debug(f'Using repo definition file {repo_deffile}')
+                            definition = repo_deffile
+                        else:
+                            self.log.error(f"The definition file {repo_deffile} doesn't exist. Please try again.")
+                    source_file = definition
+                    definition = json.load(definition)
+
+                elif not isinstance(definition, dict):
+                    raise TypeError(f"Definition file in unsupported format {type(definition)}, expected format --> dict")
+                
+                for program, criteria in definition.items():
+                    product.nested_process_search(Tag(program, source_file), criteria, base_query)
 
                     if product.has_results():
                         # write results as they become available
@@ -276,6 +309,7 @@ class Surveyor():
                     
             # if there's sigma rule to be processed
             if sigma_rule:
+                source_file = sigma_rule if os.path.isfile(sigma_rule) else None
                 pq_check = True if s1_use_powerquery else False
                 translated_rules = sigma_translation(product.product, [sigma_rule], pq_check)
                 if len(translated_rules['queries']) != len(sigma_rules):
@@ -284,7 +318,7 @@ class Surveyor():
                 for rule in translated_rules['queries']:
                     label = f"{rule['title']} - {rule['id']}" if not label else label
 
-                    product.nested_process_search(Tag(label), {'query': [rule['query']]}, base_query)
+                    product.nested_process_search(Tag(label, source_file), {'query': [rule['query']]}, base_query)
 
                     if product.has_results():
                         # write results as they become available
@@ -297,6 +331,39 @@ class Surveyor():
                 # write any remaining results
                 for tag, nested_results in product.get_results().items():
                     self._save_results(nested_results, tag)
+
+            if hunt_query_file:
+                queries = []
+                if not os.path.exists(hunt_query_file):
+                    repo_huntfile: str = os.path.join(os.path.dirname(__file__), 'hunt_queries', hunt_query_file)
+                    if not repo_huntfile.endswith('.yaml'):
+                        repo_huntfile = repo_huntfile + '.yaml'
+
+                    if os.path.isfile(repo_huntfile):
+                        self.log.debug(f'Using repo hunt query file {repo_huntfile}')
+                        hunt_query_file = repo_huntfile
+                    else:
+                        self.log.error(f"The hunt query file {hunt_query_file} doesn't exist. Please try again.")
+
+                with open(hunt_query_file) as f:
+                    data = yaml.safe_load(f)
+                    if not set(["title", "description", "platforms"]).issubset(data.keys()):
+                        self.log.error("The YAML file must contain the following keys: title, description, and platforms.")
+                    for i in data["platforms"]:
+                        if i.get(product) and isinstance(i[product], list):
+                            queries.extend(i[product])
+                        elif list(i.keys())[0].startswith(product) and product == "s1":
+                            queries.append(i)
+
+                    if not queries:
+                        self.log.error(f"No queries found for {product}. Skipping.")
+
+                    label = data.get("title") if not label else label
+                    for query in queries:
+                        product.process_search(Tag(label, hunt_query_file), base_query, query)
+
+                        for tag, results in product.get_results().items():
+                            self._save_results(results, tag)
 
             if self.results and save_to_json_file:
                 os.makedirs(save_dir, exist_ok=True)

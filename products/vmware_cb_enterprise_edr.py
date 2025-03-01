@@ -130,6 +130,7 @@ class CbEnterpriseEdr(Product):
                     query=" ".join(full_query._raw_query),
                     label=tag.tag,
                     profile=self.profile,
+                    source=tag.source,
                     raw_data=(json.dumps(deets))
                     )
                 

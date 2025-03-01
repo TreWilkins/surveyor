@@ -133,51 +133,52 @@ def test_process_search(s1_product : SentinelOne):
     assert s1_product._queries[Tag('test_query')][0].end_date - timedelta(days=14) == s1_product._queries[Tag('test_query')][0].start_date
 
 def test_nested_process_search_dv(s1_product : SentinelOne):
-    with open(os.path.join(os.getcwd(), 'tests', 'data', 's1_surveyor_testing.json')) as f:
+    source = os.path.join(os.getcwd(), 'tests', 'data', 's1_surveyor_testing.json')
+    with open(source) as f:
         programs = json.load(f)
 
     s1_product._queries = {}
     s1_product._pq = False
 
     for program, criteria in programs.items():
-        s1_product.nested_process_search(Tag(program), criteria, {})
+        s1_product.nested_process_search(Tag(program, source), criteria, {})
     
     assert len(s1_product._queries) == 4
 
-    assert len(s1_product._queries[Tag('field_translation')]) == 16
-    sdate = s1_product._queries[Tag('field_translation')][0].start_date
-    edate = s1_product._queries[Tag('field_translation')][0].end_date
-    assert Query(sdate, edate, 'ProcessName', 'containscis', '"notepad.exe"', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'IP', 'containscis', '"127.0.0.1"', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'CmdLine', 'containscis', '"MiniDump"', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'Publisher', 'containscis', '"Microsoft Publisher"', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'DNS', 'containscis', '"raw.githubusercontent.com"', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'TgtFileInternalName', 'containscis', '"powershell"', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'Url', 'containscis', '"https://google.com"', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'FilePath', 'containscis', '"current_date.txt"', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'ModulePath', 'containscis', '"pcwutl.dll"', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'SrcProcDisplayName', 'containscis', '"Evil Stuff Here"', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'Md5', 'containscis', '"asdfasdfasdfasdf"', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'Sha1', 'containscis', '"qwerqwerqwerqwer"', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'Sha256', 'containscis', '"zxcvzxcvzxcv"', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'DstPort', 'containscis', '"80"', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'RegistryKeyPath', 'containscis', '"HKLM"', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'RegistryValue', 'containscis', '"HKLM"', None) in s1_product._queries[Tag('field_translation')]
+    assert len(s1_product._queries[Tag('field_translation', source)]) == 16
+    sdate = s1_product._queries[Tag('field_translation', source)][0].start_date
+    edate = s1_product._queries[Tag('field_translation', source)][0].end_date
+    assert Query(sdate, edate, 'ProcessName', 'containscis', '"notepad.exe"', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'IP', 'containscis', '"127.0.0.1"', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'CmdLine', 'containscis', '"MiniDump"', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'Publisher', 'containscis', '"Microsoft Publisher"', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'DNS', 'containscis', '"raw.githubusercontent.com"', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'TgtFileInternalName', 'containscis', '"powershell"', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'Url', 'containscis', '"https://google.com"', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'FilePath', 'containscis', '"current_date.txt"', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'ModulePath', 'containscis', '"pcwutl.dll"', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'SrcProcDisplayName', 'containscis', '"Evil Stuff Here"', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'Md5', 'containscis', '"asdfasdfasdfasdf"', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'Sha1', 'containscis', '"qwerqwerqwerqwer"', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'Sha256', 'containscis', '"zxcvzxcvzxcv"', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'DstPort', 'containscis', '"80"', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'RegistryKeyPath', 'containscis', '"HKLM"', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'RegistryValue', 'containscis', '"HKLM"', None) in s1_product._queries[Tag('field_translation', source)]
 
-    assert len(s1_product._queries[Tag('multiple_values')]) == 1
-    sdate = s1_product._queries[Tag('multiple_values')][0].start_date
-    edate = s1_product._queries[Tag('multiple_values')][0].end_date    
-    assert Query(sdate, edate, 'ProcessName', 'in contains anycase', '("svchost.exe", "cmd.exe")', None) in s1_product._queries[Tag('multiple_values')]
+    assert len(s1_product._queries[Tag('multiple_values', source)]) == 1
+    sdate = s1_product._queries[Tag('multiple_values', source)][0].start_date
+    edate = s1_product._queries[Tag('multiple_values', source)][0].end_date    
+    assert Query(sdate, edate, 'ProcessName', 'in contains anycase', '("svchost.exe", "cmd.exe")', None) in s1_product._queries[Tag('multiple_values', source)]
     
-    assert len(s1_product._queries[Tag('single_query')]) == 1
-    sdate = s1_product._queries[Tag('single_query')][0].start_date
-    edate = s1_product._queries[Tag('single_query')][0].end_date    
-    assert Query(sdate, edate, 'query', 'raw', 'FileName containscis "rundll.exe"', None) in s1_product._queries[Tag('single_query')]
+    assert len(s1_product._queries[Tag('single_query', source)]) == 1
+    sdate = s1_product._queries[Tag('single_query', source)][0].start_date
+    edate = s1_product._queries[Tag('single_query', source)][0].end_date    
+    assert Query(sdate, edate, 'query', 'raw', 'FileName containscis "rundll.exe"', None) in s1_product._queries[Tag('single_query', source)]
     
-    assert len(s1_product._queries[Tag('multiple_query')]) == 1
-    sdate = s1_product._queries[Tag('multiple_query')][0].start_date
-    edate = s1_product._queries[Tag('multiple_query')][0].end_date
-    assert Query(sdate, edate, 'query', 'raw', '(ProcessCmdLine contains "-enc") OR (ModulePath contains "malware.dll")', None) in s1_product._queries[Tag('multiple_query')]
+    assert len(s1_product._queries[Tag('multiple_query', source)]) == 1
+    sdate = s1_product._queries[Tag('multiple_query', source)][0].start_date
+    edate = s1_product._queries[Tag('multiple_query', source)][0].end_date
+    assert Query(sdate, edate, 'query', 'raw', '(ProcessCmdLine contains "-enc") OR (ModulePath contains "malware.dll")', None) in s1_product._queries[Tag('multiple_query', source)]
 
 def test_nested_process_search_dv_over_100_terms(s1_product : SentinelOne):
     list_o_terms = list(range(1, 106))
@@ -196,56 +197,57 @@ def test_nested_process_search_dv_over_100_terms(s1_product : SentinelOne):
     assert Query(sdate, edate, 'ProcessName', 'in contains anycase', second_list, None) in s1_product._queries[Tag('list_of_105_terms')]
 
 def test_nested_process_search_pq(s1_product : SentinelOne):
-    with open(os.path.join(os.getcwd(), 'tests', 'data', 's1_surveyor_testing.json')) as f:
+    source = os.path.join(os.getcwd(), 'tests', 'data', 's1_surveyor_testing.json')
+    with open(source) as f:
         programs = json.load(f)
 
     s1_product._queries = {}
     s1_product._pq = True
 
     for program, criteria in programs.items():
-        s1_product.nested_process_search(Tag(program), criteria, {})
+        s1_product.nested_process_search(Tag(program, source), criteria, {})
     
     assert len(s1_product._queries) == 4
 
-    assert len(s1_product._queries[Tag('field_translation')]) == 21
-    sdate = s1_product._queries[Tag('field_translation')][0].start_date
-    edate = s1_product._queries[Tag('field_translation')][0].end_date
-    assert Query(sdate, edate, 'src.process.name', 'contains', '("notepad.exe")', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'dst.ip.address', 'contains', '("127.0.0.1")', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'src.process.cmdline', 'contains', '("MiniDump")', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'src.process.publisher', 'contains', '("Microsoft Publisher")', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'event.dns.request', 'contains', '("raw.githubusercontent.com")', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'tgt.file.internalName', 'contains', '("powershell")', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'url.address', 'contains', '("https://google.com")', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'tgt.file.path', 'contains', '("current_date.txt")', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'module.path', 'contains', '("pcwutl.dll")', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'src.process.displayName', 'contains', '("Evil Stuff Here")', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'src.process.image.md5', 'contains', '("asdfasdfasdfasdf")', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'src.process.image.sha256', 'contains', '("zxcvzxcvzxcv")', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'src.process.image.sha1', 'contains', '("qwerqwerqwerqwer")', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'tgt.file.md5', 'contains', '("asdfasdfasdfasdf")', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'tgt.file.sha256', 'contains', '("zxcvzxcvzxcv")', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'tgt.file.sha1', 'contains', '("qwerqwerqwerqwer")', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'module.md5', 'contains', '("asdfasdfasdfasdf")', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'module.sha1', 'contains', '("qwerqwerqwerqwer")', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'registry.keyPath', 'contains', '("HKLM")', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'registry.value', 'contains', '("HKLM")', None) in s1_product._queries[Tag('field_translation')]
-    assert Query(sdate, edate, 'dst.port.number', 'contains', '("80")', None) in s1_product._queries[Tag('field_translation')]
+    assert len(s1_product._queries[Tag('field_translation', source)]) == 21
+    sdate = s1_product._queries[Tag('field_translation', source)][0].start_date
+    edate = s1_product._queries[Tag('field_translation', source)][0].end_date
+    assert Query(sdate, edate, 'src.process.name', 'contains', '("notepad.exe")', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'dst.ip.address', 'contains', '("127.0.0.1")', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'src.process.cmdline', 'contains', '("MiniDump")', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'src.process.publisher', 'contains', '("Microsoft Publisher")', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'event.dns.request', 'contains', '("raw.githubusercontent.com")', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'tgt.file.internalName', 'contains', '("powershell")', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'url.address', 'contains', '("https://google.com")', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'tgt.file.path', 'contains', '("current_date.txt")', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'module.path', 'contains', '("pcwutl.dll")', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'src.process.displayName', 'contains', '("Evil Stuff Here")', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'src.process.image.md5', 'contains', '("asdfasdfasdfasdf")', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'src.process.image.sha256', 'contains', '("zxcvzxcvzxcv")', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'src.process.image.sha1', 'contains', '("qwerqwerqwerqwer")', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'tgt.file.md5', 'contains', '("asdfasdfasdfasdf")', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'tgt.file.sha256', 'contains', '("zxcvzxcvzxcv")', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'tgt.file.sha1', 'contains', '("qwerqwerqwerqwer")', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'module.md5', 'contains', '("asdfasdfasdfasdf")', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'module.sha1', 'contains', '("qwerqwerqwerqwer")', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'registry.keyPath', 'contains', '("HKLM")', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'registry.value', 'contains', '("HKLM")', None) in s1_product._queries[Tag('field_translation', source)]
+    assert Query(sdate, edate, 'dst.port.number', 'contains', '("80")', None) in s1_product._queries[Tag('field_translation', source)]
 
-    assert len(s1_product._queries[Tag('multiple_values')]) == 1
-    sdate = s1_product._queries[Tag('multiple_values')][0].start_date
-    edate = s1_product._queries[Tag('multiple_values')][0].end_date    
-    assert Query(sdate, edate, 'src.process.name', 'contains', '("svchost.exe", "cmd.exe")', None) in s1_product._queries[Tag('multiple_values')]
+    assert len(s1_product._queries[Tag('multiple_values', source)]) == 1
+    sdate = s1_product._queries[Tag('multiple_values', source)][0].start_date
+    edate = s1_product._queries[Tag('multiple_values', source)][0].end_date    
+    assert Query(sdate, edate, 'src.process.name', 'contains', '("svchost.exe", "cmd.exe")', None) in s1_product._queries[Tag('multiple_values', source)]
     
-    assert len(s1_product._queries[Tag('single_query')]) == 1
-    sdate = s1_product._queries[Tag('single_query')][0].start_date
-    edate = s1_product._queries[Tag('single_query')][0].end_date    
-    assert Query(sdate, edate, None, None, None, 'FileName containscis "rundll.exe"') in s1_product._queries[Tag('single_query')]
+    assert len(s1_product._queries[Tag('single_query', source)]) == 1
+    sdate = s1_product._queries[Tag('single_query', source)][0].start_date
+    edate = s1_product._queries[Tag('single_query', source)][0].end_date    
+    assert Query(sdate, edate, None, None, None, 'FileName containscis "rundll.exe"') in s1_product._queries[Tag('single_query', source)]
     
-    assert len(s1_product._queries[Tag('multiple_query')]) == 1
-    sdate = s1_product._queries[Tag('multiple_query')][0].start_date
-    edate = s1_product._queries[Tag('multiple_query')][0].end_date
-    assert Query(sdate, edate, None, None, None, '(ProcessCmdLine contains "-enc") or (ModulePath contains "malware.dll")') in s1_product._queries[Tag('multiple_query')]
+    assert len(s1_product._queries[Tag('multiple_query', source)]) == 1
+    sdate = s1_product._queries[Tag('multiple_query', source)][0].start_date
+    edate = s1_product._queries[Tag('multiple_query', source)][0].end_date
+    assert Query(sdate, edate, None, None, None, '(ProcessCmdLine contains "-enc") or (ModulePath contains "malware.dll")') in s1_product._queries[Tag('multiple_query', source)]
 
 def test_nested_process_search_pq_over_max_char_limit(s1_product : SentinelOne):
     list_o_terms = ['abcdefghijklmnopqrstuvwxyz'] * 251
@@ -281,7 +283,7 @@ def test_get_query_text_handles_same_field_different_tag_dv(s1_product : Sentine
         Tag('valueB'): [Query(sdate, edate, 'ProcessName', 'containscis', '"cmd.exe"')]
     }
 
-    assert s1_product._get_query_text() == [(Tag('valueA', data=None), 'ProcessName containscis "svchost.exe"'), (Tag('valueB', data=None), 'ProcessName containscis "cmd.exe"')]
+    assert s1_product._get_query_text() == [(Tag('valueA', source=None), 'ProcessName containscis "svchost.exe"'), (Tag('valueB', source=None), 'ProcessName containscis "cmd.exe"')]
 
 def test_get_query_text_handles_different_fields_different_tag_dv(s1_product : SentinelOne):
     sdate = datetime.now(timezone.utc)
@@ -293,8 +295,8 @@ def test_get_query_text_handles_different_fields_different_tag_dv(s1_product : S
     }
 
     assert s1_product._get_query_text() == [
-        (Tag('valueA', data=None), 'ProcessName containscis "posh.exe"'),
-        (Tag('valueB', data=None), 'ModulePath containscis "evil.dll"')]
+        (Tag('valueA', source=None), 'ProcessName containscis "posh.exe"'),
+        (Tag('valueB', source=None), 'ModulePath containscis "evil.dll"')]
 
 def test_get_query_text_handles_parameters_pq(s1_product: SentinelOne):
     sdate = datetime.now(timezone.utc)
@@ -305,7 +307,7 @@ def test_get_query_text_handles_parameters_pq(s1_product: SentinelOne):
     }
 
     assert s1_product._get_query_text() == [
-        (Tag('valueA', data=None), 'endpoint.name contains "dc01"')
+        (Tag('valueA', source=None), 'endpoint.name contains "dc01"')
     ]
 
 def test_get_query_text_handles_full_query_pq(s1_product : SentinelOne):
@@ -317,7 +319,7 @@ def test_get_query_text_handles_full_query_pq(s1_product : SentinelOne):
     }
 
     assert s1_product._get_query_text() == [
-        (Tag('valueA', data=None), 'src.process.name contains "explorer.exe"')
+        (Tag('valueA', source=None), 'src.process.name contains "explorer.exe"')
     ]
 
 def test_process_queries_dv(s1_product : SentinelOne, mocker):
@@ -331,7 +333,7 @@ def test_process_queries_dv(s1_product : SentinelOne, mocker):
     mocked_run_query = mocker.patch.object(s1_product, '_run_query')
 
     s1_product._queries = {
-        Tag('valueA', data=None): [Query(sdate, edate, 'ProcessName', 'containscis', 'powershell.exe'),
+        Tag('valueA', source=None): [Query(sdate, edate, 'ProcessName', 'containscis', 'powershell.exe'),
                                    Query(sdate, edate, 'ProcessName', 'containscis', 'cmd.exe'),
                                    Query(sdate, edate, 'ProcessName', 'containscis', 'rundll32.exe'),
                                    Query(sdate, edate, 'ProcessName', 'containscis', 'wsl.exe'),
@@ -342,7 +344,7 @@ def test_process_queries_dv(s1_product : SentinelOne, mocker):
                                    Query(sdate, edate, 'ProcessName', 'containscis', 'firefox.exe'),
                                    Query(sdate, edate, 'ProcessName', 'containscis', 'chrome.exe'),
                                    Query(sdate, edate, 'ProcessName', 'containscis', 'iexplore.exe')],
-        Tag('valueB', data=None): [Query(sdate, edate, 'DNS', 'containscis', 'google.com'),
+        Tag('valueB', source=None): [Query(sdate, edate, 'DNS', 'containscis', 'google.com'),
                                    Query(sdate, edate, 'DNS', 'containscis', 'microsoft.com'),
                                    Query(sdate, edate, 'DNS', 'containscis', 'amazon.com'),
                                    Query(sdate, edate, 'DNS', 'containscis', 'bing.com'),
@@ -362,13 +364,13 @@ def test_process_queries_dv(s1_product : SentinelOne, mocker):
              'containscis rundll32.exe OR ProcessName containscis wsl.exe OR ProcessName containscis regsvr32.exe ' + 
              'OR ProcessName containscis svchost.exe OR ProcessName containscis notepad.exe OR ProcessName containscis ' + 
              'explorer.exe OR ProcessName containscis firefox.exe OR ProcessName containscis chrome.exe', 
-             ANY, ANY, Tag('valueA', data=None), ANY),
-        call('ProcessName containscis iexplore.exe', ANY, ANY, Tag('valueA', data=None), ANY),
+             ANY, ANY, Tag('valueA', source=None), ANY),
+        call('ProcessName containscis iexplore.exe', ANY, ANY, Tag('valueA', source=None), ANY),
         call('DNS containscis google.com OR DNS containscis microsoft.com OR DNS containscis amazon.com OR DNS containscis bing.com ' + 
              'OR DNS containscis yahoo.com OR DNS containscis github.com OR DNS containscis virustotal.com OR DNS containscis facebook.com ' + 
              'OR DNS containscis twitter.com OR DNS containscis spotify.com', 
-             ANY, ANY, Tag('valueB', data=None), ANY),
-        call('DNS containscis apple.com', ANY, ANY, Tag('valueB', data=None), ANY)
+             ANY, ANY, Tag('valueB', source=None), ANY),
+        call('DNS containscis apple.com', ANY, ANY, Tag('valueB', source=None), ANY)
     ])
 
 def test_process_queries_pq(s1_product : SentinelOne, mocker):
@@ -382,7 +384,7 @@ def test_process_queries_pq(s1_product : SentinelOne, mocker):
     mocked_run_query = mocker.patch.object(s1_product, '_run_query')
 
     s1_product._queries = {
-        Tag('valueA', data=None): [Query(sdate, edate, 'src.process.name', 'contains', 'powershell.exe'),
+        Tag('valueA', source=None): [Query(sdate, edate, 'src.process.name', 'contains', 'powershell.exe'),
                                    Query(sdate, edate, 'src.process.name', 'contains', 'cmd.exe'),
                                    Query(sdate, edate, 'src.process.name', 'contains', 'rundll32.exe'),
                                    Query(sdate, edate, 'src.process.name', 'contains', 'wsl.exe'),
@@ -393,7 +395,7 @@ def test_process_queries_pq(s1_product : SentinelOne, mocker):
                                    Query(sdate, edate, 'src.process.name', 'contains', 'firefox.exe'),
                                    Query(sdate, edate, 'src.process.name', 'contains', 'chrome.exe'),
                                    Query(sdate, edate, 'src.process.name', 'contains', 'iexplore.exe')],
-        Tag('valueB', data=None): [Query(sdate, edate, 'event.dns.request', 'contains', 'google.com'),
+        Tag('valueB', source=None): [Query(sdate, edate, 'event.dns.request', 'contains', 'google.com'),
                                    Query(sdate, edate, 'event.dns.request', 'contains', 'microsoft.com'),
                                    Query(sdate, edate, 'event.dns.request', 'contains', 'amazon.com'),
                                    Query(sdate, edate, 'event.dns.request', 'contains', 'bing.com'),
@@ -419,13 +421,13 @@ def test_process_queries_pq(s1_product : SentinelOne, mocker):
              'src.process.parent.image.path, tgt.process.displayname, tgt.process.image.path, ' +
              'tgt.file.path, tgt.file.sha1, tgt.file.sha256, url.address, src.ip.address, ' +
              'dst.ip.address, event.dns.request, event.type', 
-             ANY, ANY, Tag('valueA', data=None), ANY),
+             ANY, ANY, Tag('valueA', source=None), ANY),
         call('src.process.name contains iexplore.exe | group count() by endpoint.name, src.process.user, ' +
              'src.process.image.path, src.process.cmdline, event.time, ' +
              'site.id, site.name, src.process.storyline.id, src.process.displayname, ' +
              'src.process.parent.image.path, tgt.process.displayname, tgt.process.image.path, ' +
              'tgt.file.path, tgt.file.sha1, tgt.file.sha256, url.address, src.ip.address, ' +
-             'dst.ip.address, event.dns.request, event.type',  ANY, ANY, Tag('valueA', data=None), ANY),
+             'dst.ip.address, event.dns.request, event.type',  ANY, ANY, Tag('valueA', source=None), ANY),
         call('event.dns.request contains google.com OR event.dns.request contains microsoft.com OR event.dns.request contains amazon.com OR event.dns.request contains bing.com ' + 
              'OR event.dns.request contains yahoo.com OR event.dns.request contains github.com OR event.dns.request contains virustotal.com OR event.dns.request contains facebook.com ' + 
              'OR event.dns.request contains twitter.com OR event.dns.request contains spotify.com ' + 
@@ -435,13 +437,13 @@ def test_process_queries_pq(s1_product : SentinelOne, mocker):
              'src.process.parent.image.path, tgt.process.displayname, tgt.process.image.path, ' +
              'tgt.file.path, tgt.file.sha1, tgt.file.sha256, url.address, src.ip.address, ' +
              'dst.ip.address, event.dns.request, event.type', 
-             ANY, ANY, Tag('valueB', data=None), ANY),
+             ANY, ANY, Tag('valueB', source=None), ANY),
         call('event.dns.request contains apple.com | group count() by endpoint.name, src.process.user, ' +
              'src.process.image.path, src.process.cmdline, event.time, ' +
              'site.id, site.name, src.process.storyline.id, src.process.displayname, ' +
              'src.process.parent.image.path, tgt.process.displayname, tgt.process.image.path, ' +
              'tgt.file.path, tgt.file.sha1, tgt.file.sha256, url.address, src.ip.address, ' +
-             'dst.ip.address, event.dns.request, event.type',  ANY, ANY, Tag('valueB', data=None), ANY)
+             'dst.ip.address, event.dns.request, event.type',  ANY, ANY, Tag('valueB', source=None), ANY)
     ])
 
 def test_process_queries_pq_single_site_id(s1_product : SentinelOne, mocker):
@@ -455,7 +457,7 @@ def test_process_queries_pq_single_site_id(s1_product : SentinelOne, mocker):
     mocked_run_query = mocker.patch.object(s1_product, '_run_query')
 
     s1_product._queries = {
-        Tag('valueA', data=None): [Query(sdate, edate, 'src.process.name', 'contains', 'powershell.exe')],
+        Tag('valueA', source=None): [Query(sdate, edate, 'src.process.name', 'contains', 'powershell.exe')],
     }
 
     s1_product._process_queries()
@@ -468,7 +470,7 @@ def test_process_queries_pq_single_site_id(s1_product : SentinelOne, mocker):
              'src.process.parent.image.path, tgt.process.displayname, tgt.process.image.path, ' +
              'tgt.file.path, tgt.file.sha1, tgt.file.sha256, url.address, src.ip.address, ' +
              'dst.ip.address, event.dns.request, event.type', 
-             ANY, ANY, Tag('valueA', data=None), ANY)
+             ANY, ANY, Tag('valueA', source=None), ANY)
     ])
 
 def test_process_queries_pq_multiple_site_ids(s1_product : SentinelOne, mocker):
@@ -482,7 +484,7 @@ def test_process_queries_pq_multiple_site_ids(s1_product : SentinelOne, mocker):
     mocked_run_query = mocker.patch.object(s1_product, '_run_query')
 
     s1_product._queries = {
-        Tag('valueA', data=None): [Query(sdate, edate, 'src.process.name', 'contains', 'powershell.exe')],
+        Tag('valueA', source=None): [Query(sdate, edate, 'src.process.name', 'contains', 'powershell.exe')],
     }
 
     s1_product._process_queries()
@@ -495,5 +497,5 @@ def test_process_queries_pq_multiple_site_ids(s1_product : SentinelOne, mocker):
              'src.process.parent.image.path, tgt.process.displayname, tgt.process.image.path, ' +
              'tgt.file.path, tgt.file.sha1, tgt.file.sha256, url.address, src.ip.address, ' +
              'dst.ip.address, event.dns.request, event.type', 
-             ANY, ANY, Tag('valueA', data=None), ANY)
+             ANY, ANY, Tag('valueA', source=None), ANY)
     ])

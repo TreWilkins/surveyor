@@ -12,7 +12,7 @@ class AuthenticationError(Exception):
 @dataclass(eq=True, frozen=True)
 class Tag:
     tag: str
-    data: Optional[str] = None
+    source: Optional[str] = None
 
 
 @dataclass(eq=True, frozen=True)
@@ -25,6 +25,7 @@ class Result:
     label: str
     profile: str
     query: str
+    source: str
     raw_data: Optional[Tuple] = None
 
 

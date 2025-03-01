@@ -94,7 +94,7 @@ def test_def_file(mocker):
     mocker.patch('products.vmware_cb_response.CbResponse._authenticate')
     mocked_nested_process_search = mocker.patch('products.vmware_cb_response.CbResponse.nested_process_search')
 
-    Surveyor("cbr").survey(definitions={"ProgramA":{"process_name":["test.exe"]}})
+    Surveyor("cbr").survey(definition={"ProgramA":{"process_name":["test.exe"]}})
     mocked_nested_process_search.assert_called_once_with(
         Tag('ProgramA'), 
         {"process_name":["test.exe"]}, 
@@ -108,7 +108,7 @@ def test_def_file_with_base_query(mocker):
     """
     mocker.patch('products.vmware_cb_response.CbResponse._authenticate')
     mocked_nested_process_search = mocker.patch('products.vmware_cb_response.CbResponse.nested_process_search')
-    Surveyor("cbr").survey(definitions={"ProgramA":{"process_name":["test.exe"]}}, days=5, hostname="workstation1", username="admin")
+    Surveyor("cbr").survey(definition={"ProgramA":{"process_name":["test.exe"]}}, days=5, hostname="workstation1", username="admin")
     mocked_nested_process_search.assert_called_once_with(
         Tag('ProgramA'), 
         {"process_name":["test.exe"]}, 

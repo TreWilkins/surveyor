@@ -135,5 +135,6 @@ class CbResponse(Product):
             label=tag.tag,
             profile=self.profile,
             query=query,
+            source=tag.source,
             raw_data=(json.dumps(proc.original_document))
             )

@@ -655,6 +655,7 @@ class SentinelOne(Product):
                     query=merged_query,
                     label=merged_tag.tag,
                     profile=self.profile,
+                    source=merged_tag.source,
                     raw_data=(json.dumps(event))
                     )
 

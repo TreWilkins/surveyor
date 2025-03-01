@@ -97,32 +97,32 @@ def test_nested_process_search(dfe_product : DefenderForEndpoints, mocker):
     Verify nested_process_search() translates the given definition file correctly
     """
     mocked_process_search = mocker.patch('products.microsoft_defender_for_endpoints.DefenderForEndpoints.process_search')
-
-    with open(os.path.join(os.getcwd(), 'tests','data','dfe_surveyor_testing.json')) as f:
+    source = os.path.join(os.getcwd(), 'tests','data','dfe_surveyor_testing.json')
+    with open(source) as f:
         programs = json.load(f)
 
     for program, criteria in programs.items():
-        dfe_product.nested_process_search(Tag(program), criteria, {})
+        dfe_product.nested_process_search(Tag(program, source), criteria, {})
 
     mocked_process_search.assert_has_calls(
         [
-            call(Tag('field_translation', data=None), {}, "DeviceProcessEvents | where FolderPath has_any ('notepad.exe') | project Timestamp, DeviceName, AccountName, FolderPath, ProcessCommandLine"),
-            call(Tag('field_translation', data=None), {}, "DeviceFileEvents | where FolderPath has_any ('current_date.txt') | project Timestamp, DeviceName, InitiatingProcessAccountName, InitiatingProcessFolderPath, InitiatingProcessCommandLine"),
-            call(Tag('field_translation', data=None), {}, "DeviceNetworkEvents | where RemoteIP has_any ('127.0.0.1') | project Timestamp, DeviceName, InitiatingProcessAccountName, InitiatingProcessFolderPath, InitiatingProcessCommandLine"),
-            call(Tag('field_translation', data=None), {}, "DeviceProcessEvents | where ProcessCommandLine has_any ('MiniDump') | project Timestamp, DeviceName, AccountName, FolderPath, ProcessCommandLine"),
-            call(Tag('field_translation', data=None), {}, "DeviceFileCertificateInfo | where Signer has_any ('Microsoft Publisher') | join kind=inner DeviceProcessEvents on $left.SHA1 == $right.SHA1 | project Timestamp, DeviceName, AccountName, FolderPath, ProcessCommandLine"),
-            call(Tag('field_translation', data=None), {}, "DeviceNetworkEvents | where RemoteUrl has_any ('raw.githubusercontent.com') | project Timestamp, DeviceName, InitiatingProcessAccountName, InitiatingProcessFolderPath, InitiatingProcessCommandLine"),
-            call(Tag('field_translation', data=None), {}, "DeviceProcessEvents | where ProcessVersionInfoInternalFileName has_any ('powershell') | project Timestamp, DeviceName, AccountName, FolderPath, ProcessCommandLine"),
-            call(Tag('field_translation', data=None), {}, "DeviceProcessEvents | where MD5 has_any ('asdfasdfasdfasdf') | project Timestamp, DeviceName, AccountName, FolderPath, ProcessCommandLine"),
-            call(Tag('field_translation', data=None), {}, "DeviceProcessEvents | where SHA1 has_any ('qwerqwerqwerqwer') | project Timestamp, DeviceName, AccountName, FolderPath, ProcessCommandLine"),
-            call(Tag('field_translation', data=None), {}, "DeviceProcessEvents | where SHA256 has_any ('zxcvzxcvzxcv') | project Timestamp, DeviceName, AccountName, FolderPath, ProcessCommandLine"),
-            call(Tag('field_translation', data=None), {}, "DeviceImageLoadEvents | where FolderPath has_any ('pcwutl.dll') | project Timestamp, DeviceName, InitiatingProcessAccountName, InitiatingProcessFolderPath, InitiatingProcessCommandLine"),
-            call(Tag('field_translation', data=None), {}, "DeviceRegistryEvents | where RegistryKey has_any ('HKLM') | project Timestamp, DeviceName, InitiatingProcessAccountName, InitiatingProcessFolderPath, InitiatingProcessCommandLine, RegistryValueName, RegistryValueData"),
-            call(Tag('field_translation', data=None), {}, "DeviceNetworkEvents | where RemotePort has_any ('80') | project Timestamp, DeviceName, InitiatingProcessAccountName, InitiatingProcessFolderPath, InitiatingProcessCommandLine"),
-            call(Tag('multiple_values', data=None), {}, "DeviceProcessEvents | where FolderPath has_any ('svchost.exe', 'cmd.exe') | project Timestamp, DeviceName, AccountName, FolderPath, ProcessCommandLine"),
-            call(Tag('single_query', data=None), {}, "DeviceProcessEvents | where FileName contains \"rundll.exe\""),
-            call(Tag('multiple_query', data=None), {}, "DeviceProcessEvents | where ProcessCommandLine contains \"-enc\""),
-            call(Tag('multiple_query', data=None), {}, "DeviceImageLoadEvents | where FileName contains \"malware.dll\"")
+            call(Tag('field_translation', source=source), {}, "DeviceProcessEvents | where FolderPath has_any ('notepad.exe') | project Timestamp, DeviceName, AccountName, FolderPath, ProcessCommandLine"),
+            call(Tag('field_translation', source=source), {}, "DeviceFileEvents | where FolderPath has_any ('current_date.txt') | project Timestamp, DeviceName, InitiatingProcessAccountName, InitiatingProcessFolderPath, InitiatingProcessCommandLine"),
+            call(Tag('field_translation', source=source), {}, "DeviceNetworkEvents | where RemoteIP has_any ('127.0.0.1') | project Timestamp, DeviceName, InitiatingProcessAccountName, InitiatingProcessFolderPath, InitiatingProcessCommandLine"),
+            call(Tag('field_translation', source=source), {}, "DeviceProcessEvents | where ProcessCommandLine has_any ('MiniDump') | project Timestamp, DeviceName, AccountName, FolderPath, ProcessCommandLine"),
+            call(Tag('field_translation', source=source), {}, "DeviceFileCertificateInfo | where Signer has_any ('Microsoft Publisher') | join kind=inner DeviceProcessEvents on $left.SHA1 == $right.SHA1 | project Timestamp, DeviceName, AccountName, FolderPath, ProcessCommandLine"),
+            call(Tag('field_translation', source=source), {}, "DeviceNetworkEvents | where RemoteUrl has_any ('raw.githubusercontent.com') | project Timestamp, DeviceName, InitiatingProcessAccountName, InitiatingProcessFolderPath, InitiatingProcessCommandLine"),
+            call(Tag('field_translation', source=source), {}, "DeviceProcessEvents | where ProcessVersionInfoInternalFileName has_any ('powershell') | project Timestamp, DeviceName, AccountName, FolderPath, ProcessCommandLine"),
+            call(Tag('field_translation', source=source), {}, "DeviceProcessEvents | where MD5 has_any ('asdfasdfasdfasdf') | project Timestamp, DeviceName, AccountName, FolderPath, ProcessCommandLine"),
+            call(Tag('field_translation', source=source), {}, "DeviceProcessEvents | where SHA1 has_any ('qwerqwerqwerqwer') | project Timestamp, DeviceName, AccountName, FolderPath, ProcessCommandLine"),
+            call(Tag('field_translation', source=source), {}, "DeviceProcessEvents | where SHA256 has_any ('zxcvzxcvzxcv') | project Timestamp, DeviceName, AccountName, FolderPath, ProcessCommandLine"),
+            call(Tag('field_translation', source=source), {}, "DeviceImageLoadEvents | where FolderPath has_any ('pcwutl.dll') | project Timestamp, DeviceName, InitiatingProcessAccountName, InitiatingProcessFolderPath, InitiatingProcessCommandLine"),
+            call(Tag('field_translation', source=source), {}, "DeviceRegistryEvents | where RegistryKey has_any ('HKLM') | project Timestamp, DeviceName, InitiatingProcessAccountName, InitiatingProcessFolderPath, InitiatingProcessCommandLine, RegistryValueName, RegistryValueData"),
+            call(Tag('field_translation', source=source), {}, "DeviceNetworkEvents | where RemotePort has_any ('80') | project Timestamp, DeviceName, InitiatingProcessAccountName, InitiatingProcessFolderPath, InitiatingProcessCommandLine"),
+            call(Tag('multiple_values', source=source), {}, "DeviceProcessEvents | where FolderPath has_any ('svchost.exe', 'cmd.exe') | project Timestamp, DeviceName, AccountName, FolderPath, ProcessCommandLine"),
+            call(Tag('single_query', source=source), {}, "DeviceProcessEvents | where FileName contains \"rundll.exe\""),
+            call(Tag('multiple_query', source=source), {}, "DeviceProcessEvents | where ProcessCommandLine contains \"-enc\""),
+            call(Tag('multiple_query', source=source), {}, "DeviceImageLoadEvents | where FileName contains \"malware.dll\"")
         ]
     )
 
@@ -173,6 +173,7 @@ def test_process_search_build_query(dfe_product : DefenderForEndpoints, mocker):
     dfe_product._token = 'test_token_value'
     dfe_product.process_search(Tag('test123'), filters, query)
     mocked_post_advanced_query.assert_called_once_with(data={'Query': 'DeviceFileEvents | where FileName="bar foo" | where Timestamp > ago(1d) | where Timestamp > ago(2m) | where DeviceName contains "server1" | where AccountName contains "guest"'}, headers=None, tag=Tag('test123'))
+
 def test_nested_process_search_build_query(dfe_product : DefenderForEndpoints, mocker):
     """
     Verify nested_process_search() correctly merges a given query with filter options
@@ -187,5 +188,5 @@ def test_nested_process_search_build_query(dfe_product : DefenderForEndpoints, m
 
     mocked_process_search = mocker.patch('products.microsoft_defender_for_endpoints.DefenderForEndpoints.process_search')
 
-    dfe_product.nested_process_search(Tag('test123'), criteria, filters)
-    mocked_process_search.assert_called_once_with(Tag('test123', data=None), {}, 'DeviceFileEvents | where FileName="bar foo" | where Timestamp > ago(1d) | where Timestamp > ago(2m) | where DeviceName contains "server1" | where AccountName contains "guest"')
+    dfe_product.nested_process_search(Tag('test123', None), criteria, filters)
+    mocked_process_search.assert_called_once_with(Tag('test123', source=None), {}, 'DeviceFileEvents | where FileName="bar foo" | where Timestamp > ago(1d) | where Timestamp > ago(2m) | where DeviceName contains "server1" | where AccountName contains "guest"')
