@@ -123,3 +123,6 @@ results/*.json
 # other
 logs/
 products/.DS_Store
+
+# Beta Hunt Queries
+hunt_queries/beta*
