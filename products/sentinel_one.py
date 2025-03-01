@@ -685,9 +685,9 @@ class SentinelOne(Product):
         # all queries that need to be executed are now in query_text
         # execute queries in chunks
         # do not chunk if processing an IOC file
+        # do not chunk if running unstandardized
         ioc_hunt = list(self._queries.keys())
-        chunk_size = 1 if (len(ioc_hunt) == 1 and ioc_hunt[0].tag.startswith('IoC list')) else 10
-
+        chunk_size = 1 if ((len(ioc_hunt) == 1 and ioc_hunt[0].tag.startswith('IoC list')) or self._standardized==False) else 10
         with concurrent.futures.ThreadPoolExecutor(max_workers=25) as executor:
             futures = list[Future]()
 
@@ -777,8 +777,5 @@ class SentinelOne(Product):
             timestamp_seconds = int(time) / 1000
             dt = datetime.fromtimestamp(timestamp_seconds, tz=timezone.utc)
             return dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-    
-        except Exception as e:
-            self.log.info(f'Error" {e}, for time {time}')
-
-        return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+        except:
+            return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
