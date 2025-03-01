@@ -365,14 +365,16 @@ class Surveyor():
                         for tag, results in product.get_results().items():
                             self._save_results(results, tag)
 
-            if self.results and save_to_json_file:
-                os.makedirs(save_dir, exist_ok=True)
-                output_file = os.path.join(save_dir, "_".join([current_time, f'{str(self.product_args.get("profile"))}.json']))
-                
-                with open(output_file, "w") as f:
-                    json.dump(self.results, f)
+            if self.results:
+                logging.info(f"Total results: {len(self.results)}")
+                if save_to_json_file:
+                    os.makedirs(save_dir, exist_ok=True)
+                    output_file = os.path.join(save_dir, "_".join([current_time, f'{str(self.product_args.get("profile"))}.json']))
+                    
+                    with open(output_file, "w") as f:
+                        json.dump(self.results, f)
 
-                logging.info(f"Saved results to {output_file}")
+                    logging.info(f"Saved results to {output_file}")
                     
             return self.results
         
