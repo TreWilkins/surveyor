@@ -5,15 +5,21 @@ if sys.version_info.major == 3 and sys.version_info.minor < 10:
     raise Exception(f'Python 3.10+ is required to run Surveyor (current: {sys.version_info.major}.{sys.version_info.minor})')
 
 import yaml
+import csv
 import json
+import click
 import logging
 import requests
+import dataclasses
 import os
-from typing import Optional, Union, List
+from typing import Optional, Union, List, Callable, Tuple
 from datetime import datetime, timezone
 
-from load import get_product_instance
+from load import get_product_instance, get_products
 from common import Tag, Result, sigma_translation
+
+# Application version
+current_version = "2.5.0"
 
 class Surveyor():
     product_args: dict = None
@@ -23,7 +29,6 @@ class Surveyor():
 
     def __init__(self, product: str=None,
                  creds_file: Optional[str] = None,
-                 profile: Optional[str] = 'default',
                  url: Optional[str] = None,
                  token: Optional[str] = None,
                  cbr_sensor_group: Optional[str]=None,
@@ -40,7 +45,7 @@ class Surveyor():
                  s1_account_ids: Optional[List[str]] = None,
                  s1_account_names: Optional[List[str]] = None,
                  **kwargs) -> dict:
-        
+
         if self.product_args:
             self.product_args = None
 
@@ -49,10 +54,7 @@ class Surveyor():
         else:
             product = product.lower()
 
-        args = {
-            "product": product,
-            "profile": profile
-            }
+        args = dict(product=product)
         
         # Check if creds file exists for Cortex, S1, and DFE
         if product in ['cortex', 'dfe', 's1']:
@@ -132,6 +134,7 @@ class Surveyor():
 
 
     def survey(self,
+               profile: Optional[str] = None,
                hostname: Optional[str] = None,
                days: Optional[int] = None,
                minutes: Optional[int] = None,
@@ -141,18 +144,23 @@ class Surveyor():
                ioc_type: Optional[str] = None,
                query: Optional[str] = None,
                definition: Union[dict, str] = None,
+               def_dir: Optional[str] = None,
+               output: Optional[str] = None,
                hunt_query_file: Optional[str] = None,
                sigma_rule: Optional[str] = None,
+               sigma_dir: Optional[str] = None,
                s1_use_powerquery: bool = True,
                label: Optional[str] = None,
                log_dir: Optional[str] = "logs",
                save_to_json_file: bool = False,
+               save_to_csv_file: bool = False,
                standardized: bool = True, 
                save_dir: Optional[str] = "results",
                **kwargs) -> list:
         
         '''
         Args:
+            profile: (str) - The credentials profile to use.
             hostname: (str) - endpoint to search for. Default all.
             days: (int) - number of days to look back. \
                 Default the respective product's default value.
@@ -165,19 +173,26 @@ class Surveyor():
             ioc_type: (str) - The type of IoCs provided (ipaddr, sha256, md5, domain).
             query: (str) - Query to search. If sourcing from file, provide path to file.
             definition: (dict, str) - JSON `definitions` to search for. If sourcing from file, provide path unless the file exists in the projects `definitions` directory.
+            defdir: (str) - Directory containing multiple definition files.
             hunt_query_file: (str) - Provide path to hunt query file (YAML). Will auto-resolve files existing in the `hunt_queries` directory of the projects folder. 
             sigma_rule: (str[yaml], str) - str of sigma rule, or path to file.
+            sigmadir: (str) - Directory containing multiple sigma rule files.
             label: (str) - Used for definitions. sigma, and IoC searches. \
                 Use to label the output of data for easier searching. Default None
             log_dir: (str) - Where to store logs on disk.
-            save_to_json_file: str - Save results to disk. Default False.
+            save_to_json_file: bool - Save results to JSON file. Default False.
+            save_to_csv_file: bool - Save results to CSV file. Default False.
             save_dir: str - Directory where results will be saved. Defauly `results` of the project folder.
             standardized: (bool) - By default, when requesting days, minutes, username, or a hostname during a search, these arguments can be appended to a query which may cause the query to fail. To run a query with no alterations, set standardized to False. This is most useful for freeform queries, if using definition files, sigma rules, or IoC lists, this should not cause any adverse impacts
             s1_use_powerquery: (bool) - Specify if S1 should use PowerQuery by default instead of Deep Visibility. Default is True.
         Returns:
             list of results
         '''
-        
+
+        if save_to_csv_file or save_to_json_file:
+            os.makedirs(save_dir, exist_ok=True) 
+
+        profile = "default" if not profile else profile
         collected_results = list()
         
         if str(self.product_args.get('product')) not in self.supported_products:
@@ -206,11 +221,17 @@ class Surveyor():
 
         # create logging file handler
         current_time = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
-        log_file_name = current_time + f'.{product_str}_{os.urandom(6).hex()}_{self.product_args.get('profile')}.log'
+        log_file_name = current_time + f'.{product_str}_{os.urandom(6).hex()}_{profile}.log'
         handler = logging.FileHandler(os.path.join(log_dir, log_file_name))
         handler.setLevel(logging.DEBUG)
         handler.setFormatter(logging.Formatter(self.log_format))
         root.addHandler(handler)
+
+        writer = None
+        if save_to_csv_file:
+            output_file = os.path.join(save_dir, "_".join([current_time, f'{str(self.product_args.get("profile"))}.json' if not output else output]))
+            writer = csv.writer(output_file)
+            writer.writerow(list(Result.__annotations__.keys()))
 
         if len(self.product_args) > 0 and isinstance(self.product_args, dict):
             kwargs = self.product_args
@@ -225,7 +246,8 @@ class Surveyor():
         kwargs["pq"] = s1_use_powerquery if isinstance(s1_use_powerquery, bool) else True
         
         kwargs["standardized"] = standardized if isinstance(standardized, bool) else True
-
+        kwargs["profile"] = profile
+        
         # instantiate a product class instance based on the product string
         try:
             product = get_product_instance(product_str, **kwargs)
@@ -238,7 +260,25 @@ class Surveyor():
         base_query = product.base_query()
 
         # placeholder for sigma rules if sigmarule or sigmadir is selected
-        sigma_rules = list()
+        sigma_rules = list() if not sigma_rule else [sigma_rule]
+        definitions = list() if not definition else [definition]
+
+        # if defdir add all files to list
+        if def_dir:
+            if not os.path.exists(def_dir):
+                self.log.error("The defdir doesn't exist. Please try again.")
+            else:
+                for root_dir, dirs, files in os.walk(def_dir):
+                    for filename in files:
+                        if os.path.splitext(filename)[1] == '.json':
+                            definitions.append(os.path.join(root_dir, filename))
+
+        # if sigma_dir, add all files to sigma_rules list
+        if sigma_dir:
+            for root_dir, dirs, files in os.walk(sigma_dir):
+                for filename in files:
+                    if os.path.splitext(filename)[1] == '.yml':
+                        sigma_rules.append(os.path.join(root_dir, filename))
         
         base_query.update(dict(
             username=username, hostname=hostname, days=days, minutes=minutes)
@@ -255,7 +295,7 @@ class Surveyor():
                 product.process_search(Tag(label), base_query, query)
 
                 for tag, results in product.get_results().items():
-                    collected_results.extend(self._save_results(results, tag))
+                    collected_results.extend(self._save_results(results, tag, writer))
 
             # run search based on IoC list
             if ioc_list:
@@ -269,67 +309,69 @@ class Surveyor():
                 product.nested_process_search(Tag(label, source_file), {ioc_type: ioc_list}, base_query)
 
                 for tag, results in product.get_results().items():
-                    collected_results.extend(self._save_results(results, tag))
+                    collected_results.extend(self._save_results(results, tag, writer))
                         
             # run search against definition
-            if definition:
-                source_file = None
-                if isinstance(definition, str):
-                    if not os.path.exists(definition):
-                        repo_deffile: str = os.path.join(os.path.dirname(__file__), 'definitions', hunt_query_file)
-                        if not repo_deffile.endswith('.json'):
-                            repo_deffile = repo_deffile + '.json'
+            if definitions:
+                for definition in definitions:
+                    source_file = None
+                    if isinstance(definition, str):
+                        if not os.path.exists(definition):
+                            repo_deffile: str = os.path.join(os.path.dirname(__file__), 'definitions', hunt_query_file)
+                            if not repo_deffile.endswith('.json'):
+                                repo_deffile = repo_deffile + '.json'
 
-                        if os.path.isfile(repo_deffile):
-                            self.log.debug(f'Using repo definition file {repo_deffile}')
-                            definition = repo_deffile
-                        else:
-                            self.log.error(f"The definition file {repo_deffile} doesn't exist. Please try again.")
-                    source_file = definition
-                    definition = json.load(definition)
+                            if os.path.isfile(repo_deffile):
+                                self.log.debug(f'Using repo definition file {repo_deffile}')
+                                definition = repo_deffile
+                            else:
+                                self.log.error(f"The definition file {repo_deffile} doesn't exist. Please try again.")
+                        source_file = definition
+                        definition = json.load(definition)
 
-                elif not isinstance(definition, dict):
-                    raise TypeError(f"Definition file in unsupported format {type(definition)}, expected format --> dict")
-                
-                for program, criteria in definition.items():
-                    product.nested_process_search(Tag(program, source_file), criteria, base_query)
-
-                    if product.has_results():
-                        # write results as they become available
-                        for tag, nested_results in product.get_results(final_call=False).items():
-                            collected_results.extend(self._save_results(nested_results, tag))
-                            
-                        # ensure results are only written once
-                        product.clear_results()
-
-                # write any remaining results
-                for tag, nested_results in product.get_results().items():
-                    collected_results.extend(self._save_results(nested_results, tag))
+                    elif not isinstance(definition, dict):
+                        raise TypeError(f"Definition file in unsupported format {type(definition)}, expected format --> dict")
                     
-            # if there's sigma rule to be processed
-            if sigma_rule:
-                source_file = sigma_rule if os.path.isfile(sigma_rule) else None
-                pq_check = True if s1_use_powerquery else False
-                translated_rules = sigma_translation(product.product, [sigma_rule], pq_check)
-                if len(translated_rules['queries']) != len(sigma_rules):
-                    self.log.warning(f"Only {len(translated_rules['queries'])} out of {len(sigma_rules)} were able to be translated.")
-                
-                for rule in translated_rules['queries']:
-                    label = f"{rule['title']} - {rule['id']}" if not label else label
+                    for program, criteria in definition.items():
+                        product.nested_process_search(Tag(program, source_file), criteria, base_query)
 
-                    product.nested_process_search(Tag(label, source_file), {'query': [rule['query']]}, base_query)
+                        if product.has_results():
+                            # write results as they become available
+                            for tag, nested_results in product.get_results(final_call=False).items():
+                                collected_results.extend(self._save_results(nested_results, tag, writer))
+                                
+                            # ensure results are only written once
+                            product.clear_results()
 
-                    if product.has_results():
-                        # write results as they become available
-                        for tag, nested_results in product.get_results(final_call=False).items():
-                            collected_results.extend(self._save_results(nested_results, tag))
-                        
-                        # ensure results are only written once
-                        product.clear_results()
+                    # write any remaining results
+                    for tag, nested_results in product.get_results().items():
+                        collected_results.extend(self._save_results(nested_results, tag, writer))
+                    
+            # if there's sigma rules to be processed
+            if sigma_rules:
+                for sigma_rule in sigma_rules:
+                    source_file = sigma_rule if os.path.isfile(sigma_rule) else None
+                    pq_check = True if s1_use_powerquery else False
+                    translated_rules = sigma_translation(product.product, [sigma_rule], pq_check)
+                    if len(translated_rules['queries']) != len(sigma_rules):
+                        self.log.warning(f"Only {len(translated_rules['queries'])} out of {len(sigma_rules)} were able to be translated.")
+                    
+                    for rule in translated_rules['queries']:
+                        label = f"{rule['title']} - {rule['id']}" if not label else label
 
-                # write any remaining results
-                for tag, nested_results in product.get_results().items():
-                    collected_results.extend(self._save_results(nested_results, tag))
+                        product.nested_process_search(Tag(label, source_file), {'query': [rule['query']]}, base_query)
+
+                        if product.has_results():
+                            # write results as they become available
+                            for tag, nested_results in product.get_results(final_call=False).items():
+                                collected_results.extend(self._save_results(nested_results, tag, writer))
+                            
+                            # ensure results are only written once
+                            product.clear_results()
+
+                    # write any remaining results
+                    for tag, nested_results in product.get_results().items():
+                        collected_results.extend(self._save_results(nested_results, tag, writer))
 
             if hunt_query_file:
                 queries = []
@@ -362,13 +404,13 @@ class Surveyor():
                         product.process_search(Tag(label, hunt_query_file), base_query, query)
 
                         for tag, results in product.get_results().items():
-                            collected_results.extend(self._save_results(results, tag))
+                            collected_results.extend(self._save_results(results, tag, writer))
 
             if collected_results:
                 logging.info(f"Total results: {len(collected_results)}")
                 if save_to_json_file:
                     os.makedirs(save_dir, exist_ok=True)
-                    output_file = os.path.join(save_dir, "_".join([current_time, f'{str(self.product_args.get("profile"))}.json']))
+                    output_file = os.path.join(save_dir, "_".join([current_time, f'{str(self.product_args.get("profile"))}.json' if not output else output]))
                     
                     with open(output_file, "w") as f:
                         json.dump(collected_results, f)
@@ -383,9 +425,9 @@ class Surveyor():
             self.log.error(f'Caught {type(e).__name__} (see log for details): {e}')
 
 
-    def _save_results(self, results: list[Result], tag: Tag) -> Union[None, list]:
+    def _save_results(self, results: list[Result], tag: Tag, writer:csv.writer) -> Union[None, list]:
         """
-        Helper function for writing search results to list.
+        Helper function for writing search results to list and/or CSV.
         """
 
         if isinstance(tag, tuple):
@@ -394,6 +436,10 @@ class Surveyor():
         self.log.info(f"-->{tag.tag}: {len(results)} results")
 
         results = [result.__dict__ for result in results] if results else []
+        
+        if writer and results:
+            writer.writerows(results)
+        
         return results
 
 
@@ -419,3 +465,176 @@ def local_lambda(event:dict = None, product_args: dict = None, survey: dict = No
             print(f"Ensure the SURVEYOR_URL environment variable is set to {url}. Error: {e}")
         else:
             print(f"Ensure the docker container is running at {url}. Error: {e}")
+
+@dataclasses.dataclass
+class CLIExecutionOptions:
+    profile: str
+    hostname: Optional[str]
+    days: Optional[int]
+    minutes: Optional[int]
+    username: Optional[str]
+    limit: Optional[int]
+    ioc_list: Optional[str]
+    ioc_type: Optional[str]
+    query: Optional[str]
+    output: Optional[str]
+    def_dir: Optional[str]
+    definition: Optional[str]
+    sigma_rule: Optional[str]
+    sigma_dir: Optional[str]
+    log_dir: str
+    s1_use_powerquery: bool
+
+if __name__ == "__main__":
+    # noinspection SpellCheckingInspection
+    @click.group("surveyor", context_settings=dict(help_option_names=["-h", "--help", "-what-am-i-doing"]), invoke_without_command=True, chain=False)
+    # filtering options
+    @click.option("--profile", help="The credentials profile to use.", type=click.STRING)
+    @click.option("--days", help="Number of days to search.", type=click.INT)
+    @click.option("--minutes", help="Number of minutes to search.", type=click.INT)
+    @click.option("--limit",help="""
+                Number of results to return. Cortex XDR: Default: 1000, Max: Default
+                Microsoft Defender for Endpoint: Default/Max: 100000
+                SentinelOne (PowerQuery): Default/Max: 1000
+                SentinelOne (Deep Visibility): Default/Max: 20000
+                VMware Carbon Black EDR: Default/Max: None
+                VMware Carbon Black Cloud Enterprise EDR: Default/Max: None
+                
+                Note: Exceeding the maximum limits will automatically set the limit to its maximum value, where applicable.
+                """
+                , type=click.INT)
+    @click.option("--hostname", help="Target specific host by name.", type=click.STRING)
+    @click.option("--username", help="Target specific username.")
+    # different ways you can survey the EDR
+    @click.option("--deffile", 'def_file', help="Definition file to process (must end in .json).", type=click.STRING)
+    @click.option("--defdir", 'def_dir', help="Directory containing multiple definition files.", type=click.STRING)
+    @click.option("--query", help="A single query to execute.")
+    @click.option("--iocfile", 'ioc_file', help="IOC file to process. One IOC per line. REQUIRES --ioctype")
+    @click.option("--ioctype", 'ioc_type', help="One of: ipaddr, domain, md5, sha256")
+    @click.option("--sigmarule", 'sigma_rule', help="Sigma rule file to process (must be in YAML format).", type=click.STRING)
+    @click.option("--sigmadir", 'sigma_dir', help='Directory containing multiple sigma rule files.', type=click.STRING)
+    # optional output
+    @click.option("--output", "--o", help="Specify the output file for the results. "
+                                        "The default is create survey.csv in the current directory.")
+    # version option
+    @click.version_option(current_version)
+    # logging options
+    @click.option("--log-dir", 'log_dir', help="Specify the logging directory.", type=click.STRING, default='logs')
+    @click.pass_context
+    def cli(ctx, 
+            profile: str,
+            hostname: Optional[str],
+            days: Optional[int],
+            minutes: Optional[int],
+            username: Optional[str],
+            limit: Optional[int],
+            ioc_file: Optional[str],
+            ioc_type: Optional[str],
+            query: Optional[str],
+            output: Optional[str],
+            def_dir: Optional[str],
+            def_file: Optional[str],
+            sigma_rule: Optional[str],
+            sigma_dir: Optional[str],
+            log_dir: str
+            ) -> None:
+
+        ctx.ensure_object(dict)
+        ctx.obj = CLIExecutionOptions(
+            profile=profile, 
+            hostname=hostname,
+            days=days,
+            minutes=minutes,
+            username=username,
+            limit=limit,
+            ioc_list=ioc_file,
+            ioc_type=ioc_type,
+            query=query,
+            output=output,
+            def_dir=def_dir, 
+            definition=def_file,
+            sigma_rule=sigma_rule,
+            sigma_dir=sigma_dir,
+            log_dir=log_dir,
+            s1_use_powerquery=True
+            )
+
+        if ctx.invoked_subcommand is None:
+            Surveyor('cbr').survey(**ctx.obj.__dict__)
+
+
+    # Cortex options
+    @cli.command('cortex', help="Query Cortex XDR")
+    @click.option("--creds", 'creds', help="Path to credential file", type=click.Path(exists=True), required=True)
+    @click.pass_context
+    def cortex(ctx, creds: Optional[str]) -> None:
+
+        Surveyor('cortex', creds_file=creds).survey(**ctx.obj.__dict__)
+
+    # S1 options
+    @cli.command('s1', help="Query SentinelOne")
+    @click.option("--site-id", help="ID of SentinelOne site to query", multiple=True, default=None)
+    @click.option("--account-id", help="ID of SentinelOne account to query", multiple=True, default=None)
+    @click.option("--account-name", help="Name of SentinelOne account to query", multiple=True, default=None)
+    @click.option("--creds", 'creds', help="Path to credential file", type=click.Path(exists=True), required=True)
+    @click.option("--dv", 'dv', help="Use Deep Visibility for queries", is_flag=True, required=False)
+    @click.pass_context
+    def s1(ctx, site_id: Optional[Tuple], account_id: Optional[Tuple], account_name: Optional[Tuple], creds: Optional[str],
+        dv: bool) -> None:
+        site_id = list(site_id) if site_id else None
+        account_id = list(account_id) if account_id else None
+        account_name = list(account_name) if account_name else None
+        ctx.obj["s1_use_powerquery"] = False if not dv else True
+        
+        Surveyor("s1", 
+                 creds_file=creds, 
+                 s1_account_ids=account_id, 
+                 s1_account_names=account_name, 
+                 s1_site_ids=site_id
+                 ).survey(**ctx.obj.__dict__)
+
+
+    # CbC options
+    @cli.command('cbc', help="Query VMware Cb Enterprise EDR")
+    @click.option("--device-group", help="Name of device group to query", multiple=True, default=None)
+    @click.option("--device-policy", help="Name of device policy to query", multiple=True, default=None)
+    @click.pass_context
+    def cbc(ctx, device_group: Optional[Tuple], device_policy: Optional[Tuple]) -> None:
+
+        Surveyor('cbc',
+                 cbc_device_group=list(device_group) if device_group else None,
+                 cbc_device_policy=list(device_policy) if device_policy else None
+                 ).survey(**ctx.obj.__dict__)
+
+
+    # CbR Options
+    @cli.command('cbr', help="Query VMware Cb Response")
+    @click.option("--sensor-group", help="Name of sensor group to query", multiple=True, default=None)
+    @click.pass_context
+    def cbr(ctx, sensor_group: Optional[Tuple]) -> None:
+        Surveyor(product="cbr", cbr_sensor_group=sensor_group).survey(**ctx.obj.__dict__)
+
+
+    # DFE options
+    @cli.command('dfe', help="Query Microsoft Defender for Endpoints")
+    @click.option("--creds", 'creds', help="Path to credential file", type=click.Path(exists=True), required=True)
+    @click.pass_context
+    def dfe(ctx, creds: Optional[str]) -> None:
+        Surveyor('dfe', creds_file=creds).survey(**ctx.obj.__dict__)
+
+    def create_generic_product_command(name: str) -> Callable:
+        @click.pass_context
+        def command(ctx):
+            Surveyor(name)
+
+        command.__name__ = name
+        return command
+
+
+    # create click commands for all products that don't have a command function defined
+    for product_name in get_products():
+        dir_res = dir()
+        if product_name not in dir_res:
+            cli.command(name=product_name, help=f'Query {product_name}')(create_generic_product_command(str(product_name)))
+
+    cli()
