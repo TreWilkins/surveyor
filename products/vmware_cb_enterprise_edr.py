@@ -1,5 +1,6 @@
 from datetime import datetime, timezone, timedelta
 import json
+import concurrent.futures # type: ignore
 from typing import Generator, Optional
 import cbc_sdk.errors # type: ignore
 from cbc_sdk.rest_api import CBCloudAPI # type: ignore
@@ -40,6 +41,7 @@ class CbEnterpriseEdr(Product):
     profile: str = "default"
     token: Optional[str] = None
     org_key: Optional[str] = None
+    futures: list[concurrent.futures.Future] = list()
     _device_group: Optional[list[str]] = None
     _device_policy: Optional[list[str]] = None  
     _conn: CBCloudAPI  # CB Cloud API
@@ -55,6 +57,9 @@ class CbEnterpriseEdr(Product):
         self._limit = int(kwargs['limit']) if 'limit' in kwargs else self._limit
 
         super().__init__(self.product, **kwargs)
+        if isinstance(self.futures, list) and self.futures:
+            self.log.warning(f"There appears to be {len(self.futures)} futures. There should be none on initialization. Investigate further to see if there is downstream corruption or impact.")
+            self.futures.clear() # Clear out any previous futures
 
     def _authenticate(self) -> None:
         if self.token and self.url and self.org_key:
@@ -105,47 +110,56 @@ class CbEnterpriseEdr(Product):
         for i in range(0, len(l), n):
             yield l[i:i + n]
 
-    def perform_query(self, tag: Tag, base_query: dict, query: str) -> set[Result]:
-        results = set()
+    def perform_query(self, tag: Tag, base_query: dict, query: str) -> None:
+        count = 0
         parsed_base_query = self.build_query(base_query)
+        full_query = parsed_base_query.and_(f'({query})')
+        full_query_str = " ".join(full_query._raw_query)
+        self.current_query = full_query_str # This is set for Query Validator to reference.
+        self.log.debug(f'Full Query: {full_query_str}')
+
+        process = self._conn.select(Process)
+        
+        # If limit is set, tell CbC to only return that many rows per batch, allowing us to stop once we've reached the requested limit.
+        if self._limit > 0:
+            process.set_rows(self._limit)
+        
+        if not self._results.get(tag):
+            self._results[tag] = [] 
+        
         try:
-            self.log.debug(f'Query {tag}: {query}')
-
-            process = self._conn.select(Process)
-
-            full_query = parsed_base_query.where(query)
-
-            self.log.debug(f'Full Query: {full_query.__str__}')
-
             # noinspection PyUnresolvedReferences
             for proc in process.where(full_query):
                 deets = proc.get_details()
+                try:
                 
-                result = Result(
-                    hostname=deets.get('device_name'), 
-                    username=deets['process_username'][0] if 'process_username' in deets else 'None', 
-                    path=deets.get('process_name'), 
-                    command_line=deets['process_cmdline'][0] if 'process_cmdline' in deets else 'None', 
-                    timestamp=deets.get('process_start_time', deets.get('device_timestamp')),
-                    query=" ".join(full_query._raw_query),
-                    label=tag.tag,
-                    profile=self.profile,
-                    product=self.product,
-                    source=tag.source,
-                    raw_data=(json.dumps(deets))
-                    )
-                
-                results.add(result)
+                    result = Result(
+                        hostname=deets.get('device_name'), 
+                        username=deets['process_username'][0] if 'process_username' in deets else 'None', 
+                        path=deets.get('process_name'), 
+                        command_line=deets['process_cmdline'][0] if 'process_cmdline' in deets else 'None', 
+                        timestamp=deets.get('process_start_time', deets.get('device_timestamp')),
+                        query=" ".join(full_query._raw_query),
+                        label=tag.tag,
+                        profile=self.profile,
+                        product=self.product,
+                        source=tag.source,
+                        raw_data=(json.dumps(deets))
+                        )
                     
-                if self._limit > 0 and len(results)+1 > self._limit:
+                    self._results[tag].append(result)
+                except Exception as e:
+                    self.log.exception(f'Error processing result: {e}')
+                    
+                if self._limit > 0 and count >= (self._limit-1):
                     break
+                count += 1
 
         except cbc_sdk.errors.ApiError as e:
             self.log.error(f'CbC SDK Error (see log for details): {e}')
         except KeyboardInterrupt:
             self.log.exception("Caught CTRL-C. Returning what we have . . .")
         
-        return results
     
     def process_search(self, tag: Tag, base_query: dict, query: str) -> None:        
         results = self.perform_query(tag, base_query, query)
@@ -153,7 +167,8 @@ class CbEnterpriseEdr(Product):
         self._add_results(list(results), tag)
 
     def nested_process_search(self, tag: Tag, criteria: dict, base_query: dict) -> None:
-        results: list = []
+        queries = []
+        grouped_queries = [] # Used to group queries that have less than 100 terms, to speed up the search, all other queries will be run separately from the `queries` list (e.g. queries with more than 100 terms, or searches distinctly set as `query` in the search criteria) of a definition file.
 
         for search_field, terms in criteria.items():
             if search_field == 'query':
@@ -164,7 +179,7 @@ class CbEnterpriseEdr(Product):
                         query = '(' + terms[0] + ')'
                 else:
                     query = terms
-                results += self.perform_query(tag, base_query, query)
+                queries.append(query)
             else:
                 chunked_terms = list(self.divide_chunks(terms, 100))
 
@@ -177,7 +192,36 @@ class CbEnterpriseEdr(Product):
                         continue
 
                     query = '(' + ' OR '.join('%s:%s' % (PARAMETER_MAPPING[search_field], term) for term in terms) + ')'
-                    results += self.perform_query(tag, base_query, query)
+                    
+                    if len(terms) >= 100: # Run the query by itself
+                        queries.append(query) 
+                    else:  # Group the query with others to run together
+                        grouped_queries.append(query)
+        
+        if grouped_queries:
+            if len(grouped_queries) > 1: # If there are multiple queries, group them together and then add them to the main list of queries
+                queries.append('(' + ' OR '.join(grouped_queries) + ')')
+            else:
+                queries.extend(grouped_queries) # If there is only one query, add it to the main list of queries
 
-        self.log.debug(f'Nested search results: {len(results)}')
-        self._add_results(list(results), tag)
+        try:
+            with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                for q in queries:
+                    self.futures.append(executor.submit(self.perform_query, tag, base_query, q))
+        except Exception as e:
+            self.log.exception(e)
+
+
+    def get_results(self, final_call: bool = True) -> dict[Tag, list[Result]]:
+        if final_call:
+            try:
+                # Wait for all queries to complete, giving each 240 seconds to complete
+                done, not_done = concurrent.futures.wait(self.futures, timeout=240, return_when=concurrent.futures.ALL_COMPLETED)
+                
+                if not_done: 
+                    self.log.warning(f"Queries did not complete: {not_done}")
+                self.log.debug(f"Queries completed: {len(done)}. Incompleted: {len(not_done)}")
+            except Exception as e:
+                self.log.error(f"Error while waiting for queries: {e}")
+
+        return self._results

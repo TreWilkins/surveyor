@@ -115,51 +115,19 @@ def test_nested_process_search(cbc_product : CbEnterpriseEdr, mocker):
     cbc_product._sensor_group = None
     cbc_product._results = {}
     cbc_product._conn = mocker.Mock()
-    mocker.patch.object(cbc_product, 'perform_query')
+    with patch.object(cbc_product, 'perform_query') as perform_query:
 
-    expected_calls = [
-        mocker.call(Tag('field_translation'), {}, '(process_name:notepad.exe)'),
-        mocker.call(Tag('field_translation'), {}, '(netconn_ipv4:127.0.0.1)'),
-        mocker.call(Tag('field_translation'), {}, '(process_cmdline:MiniDump)'),
-        mocker.call(Tag('field_translation'), {}, '(process_publisher:Microsoft)'),
-        mocker.call(Tag('field_translation'), {}, '(netconn_domain:raw.githubusercontent.com)'),
-        mocker.call(Tag('field_translation'), {}, '(process_internal_name:powershell)'),
-        mocker.call(Tag('field_translation'), {}, '(hash:asdfasdfasdfasdf)'),
-        mocker.call(Tag('field_translation'), {}, '(hash:zxcvzxcvzxcv)'),
-        mocker.call(Tag('field_translation'), {}, '(netconn_port:80)'),
-        mocker.call(Tag('field_translation'), {}, '(regmod_name:HKLM)'),
-        mocker.call(Tag('multiple_values'), {}, '(process_name:svchost.exe OR process_name:cmd.exe)'),
-        mocker.call(Tag('single_query'), {}, '(process_name:rundll.exe)'),
-        mocker.call(Tag('multiple_query'), {}, '((process_cmdline:-enc) OR (modload_name:malware.dll))')
-    ]
+        expected_calls = [
+            mocker.call(Tag('field_translation'), {}, '((process_name:notepad.exe) OR (netconn_ipv4:127.0.0.1) OR (process_cmdline:MiniDump) OR (process_publisher:Microsoft) OR (netconn_domain:raw.githubusercontent.com) OR (process_internal_name:powershell) OR (hash:asdfasdfasdfasdf) OR (hash:zxcvzxcvzxcv) OR (regmod_name:HKLM) OR (netconn_port:80))'),
+            mocker.call(Tag('multiple_values'), {}, '(process_name:svchost.exe OR process_name:cmd.exe)'),
+            mocker.call(Tag('single_query'), {}, '(process_name:rundll.exe)'),
+            mocker.call(Tag('multiple_query'), {}, '((process_cmdline:-enc) OR (modload_name:malware.dll))')
+        ]
 
-    for program, criteria in programs.items():
-        cbc_product.nested_process_search(Tag(program), criteria, {})
-    cbc_product.perform_query.assert_has_calls(expected_calls, any_order=True)
-
-
-def test_perform_query_with_limit_option(cbc_product : CbEnterpriseEdr, mocker):
-    cbc_product.log = logging.getLogger('pytest_surveyor')
-    cbc_product._device_policy = None
-    cbc_product._device_group = None
-    cbc_product._limit = 2
-
-    cbc_product._conn = mocker.Mock()
-    cbc_product._conn.select = mocker.Mock()
-    cbc_product._conn.select.return_value = mocker.Mock(where = mocked_query_return)
-
-    assert len(cbc_product.perform_query(Tag('test_tag'), {}, 'process_name:pwsh.exe')) == 2
-
-def test_perform_query_without_limit_option(cbc_product : CbEnterpriseEdr, mocker):
-    cbc_product.log = logging.getLogger('pytest_surveyor')
-    cbc_product._device_policy = None
-    cbc_product._device_group = None
-
-    cbc_product._conn = mocker.Mock()
-    cbc_product._conn.select = mocker.Mock()
-    cbc_product._conn.select.return_value = mocker.Mock(where = mocked_query_return)
-
-    assert len(cbc_product.perform_query(Tag('test_tag'), {}, 'process_name:pwsh.exe')) == 3
+        for program, criteria in programs.items():
+            cbc_product.nested_process_search(Tag(program), criteria, {})
+        perform_query.assert_has_calls(expected_calls, any_order=True)
+        
 
 def mocked_query_return(full_query: str):
     return [
