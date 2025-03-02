@@ -24,6 +24,7 @@ class Result:
     timestamp: str
     label: str
     profile: str
+    product: str
     query: str
     source: str
     raw_data: Optional[Tuple] = None

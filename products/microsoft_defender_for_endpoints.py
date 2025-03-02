@@ -132,6 +132,7 @@ class DefenderForEndpoints(Product):
                         query=data.get('Query'),
                         label=tag.tag,
                         profile=self.profile,
+                        product=self.product,
                         source=tag.source,
                         raw_data=(json.dumps(res))
                         )

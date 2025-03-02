@@ -434,7 +434,7 @@ class Surveyor():
 
         self.log.info(f"-->{tag.tag}: {len(results)} results")
 
-        results = [result.__dict__ for result in results] if results else []
+        results = [{k:str(v) for k,v in result.__dict__.items()} for result in results] if results else []
         
         if writer and results:
             writer.writerows(results)

@@ -134,6 +134,7 @@ class CbResponse(Product):
             timestamp=self.cbr_convertime_iso8601(proc.start), 
             label=tag.tag,
             profile=self.profile,
+            product=self.product,
             query=query,
             source=tag.source,
             raw_data=(json.dumps(proc.original_document))
