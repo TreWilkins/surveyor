@@ -301,7 +301,7 @@ class Surveyor():
                     collected_results.extend(self._save_results(results, tag, writer, use_tqdm))
 
             # run search based on IoC list
-            if ioc_list:
+            elif ioc_list:
                 source_file = os.path.basename(ioc_list) if isinstance(ioc_list, str) and os.path.isfile(ioc_list) else None
                 if source_file:
                     with open(source_file) as iocs:
@@ -315,7 +315,7 @@ class Surveyor():
                     collected_results.extend(self._save_results(results, tag, writer, use_tqdm))
                         
             # run search against definition
-            if definitions:
+            elif definitions:
                 for definition in definitions:
                     source_file = None
                     if isinstance(definition, str):
@@ -354,7 +354,7 @@ class Surveyor():
                         collected_results.extend(self._save_results(nested_results, tag, writer, use_tqdm))
                     
             # if there's sigma rules to be processed
-            if sigma_rules:
+            elif sigma_rules:
                 for sigma_rule in sigma_rules:
                     source_file = os.path.basename(sigma_rule) if isinstance(sigma_rule, str) and os.path.isfile(sigma_rule) else None
                     pq_check = True if s1_use_powerquery else False
@@ -379,7 +379,7 @@ class Surveyor():
                     for tag, nested_results in product.get_results().items():
                         collected_results.extend(self._save_results(nested_results, tag, writer, use_tqdm))
 
-            if hunt_query_file:
+            elif hunt_query_file:
                 queries = []
                 if not os.path.exists(hunt_query_file):
                     repo_huntfile: str = os.path.join(os.path.dirname(__file__), 'hunt_queries', hunt_query_file)
@@ -411,6 +411,8 @@ class Surveyor():
 
                         for tag, results in product.get_results().items():
                             collected_results.extend(self._save_results(results, tag, writer, use_tqdm))
+            if use_tqdm:
+                tqdm.write(f"\n\033[95mLog: {log_file_name}\033[0m")
 
             if collected_results:
                 logging.info(f"Total results: {len(collected_results)}")
@@ -422,6 +424,12 @@ class Surveyor():
                         json.dump(collected_results, f)
 
                     logging.info(f"Saved results to {output_file}")
+                
+                if writer:
+                    output_file.close()
+                    logging.info(f"Saved results to {output_file.name}")
+                    if use_tqdm:
+                        tqdm.write(f"\033[95mResults saved: {output_file.name}\033[0m")
                     
             return collected_results
         
@@ -458,7 +466,8 @@ class Surveyor():
                     self.log.error("Error converting all values of raw_data into string")
                 
             results[idx] = result
-            if writer: writer.writerow(list(result.values()))
+            if writer: 
+                writer.writerow(list(result.values()))
         
         return results
 
