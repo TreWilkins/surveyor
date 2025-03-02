@@ -229,7 +229,8 @@ class Surveyor():
 
         writer = None
         if save_to_csv_file:
-            output_file = os.path.join(save_dir, "_".join([current_time, f'{str(self.product_args.get("profile"))}.json' if not output else output]))
+            output_file = os.path.join(save_dir, "_".join([current_time, f'{str(self.product_args.get("profile"))}.csv' if not output else output]))
+            output_file = open(output_file, 'w', newline='', encoding='utf-8')
             writer = csv.writer(output_file)
             writer.writerow(list(Result.__annotations__.keys()))
 
@@ -434,10 +435,18 @@ class Surveyor():
 
         self.log.info(f"-->{tag.tag}: {len(results)} results")
 
-        results = [{k:str(v) for k,v in result.__dict__.items()} for result in results] if results else []
-        
-        if writer and results:
-            writer.writerows(results)
+        for idx, result in enumerate(results):
+            result = result.__dict__
+            raw_data = result.get("raw_data")
+            if isinstance(raw_data, str) and raw_data:
+                try:
+                    raw_data = {k:v for k,v in json.loads(raw_data).items()}
+                    result["raw_data"] = raw_data if not writer else str(raw_data)
+                except Exception as e:
+                    self.log.error("Error converting all values of raw_data into string")
+                
+            results[idx] = result
+            if writer: writer.writerow(list(result.values()))
         
         return results
 
