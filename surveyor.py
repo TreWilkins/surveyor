@@ -27,7 +27,9 @@ class Surveyor():
     supported_products: tuple = ('cbr', 'cbc', 'dfe', 'cortex', 's1')
     log_format = '[%(asctime)s] [%(levelname)-8s] [%(name)-36s] [%(filename)-20s:%(lineno)-4s] %(message)s'
 
-    def __init__(self, product: str=None,
+    def __init__(self,
+                 product: str=None,
+                 profile: str=None,
                  creds_file: Optional[str] = None,
                  url: Optional[str] = None,
                  token: Optional[str] = None,
@@ -54,7 +56,7 @@ class Surveyor():
         else:
             product = product.lower()
 
-        args = dict(product=product)
+        args = dict(product=product, profile=profile)
         
         # Check if creds file exists for Cortex, S1, and DFE
         if product in ['cortex', 'dfe', 's1']:
@@ -134,7 +136,6 @@ class Surveyor():
 
 
     def survey(self,
-               profile: Optional[str] = None,
                hostname: Optional[str] = None,
                days: Optional[int] = None,
                minutes: Optional[int] = None,
@@ -192,7 +193,6 @@ class Surveyor():
         if save_to_csv_file or save_to_json_file:
             os.makedirs(save_dir, exist_ok=True) 
 
-        profile = "default" if not profile else profile
         collected_results = list()
         
         if str(self.product_args.get('product')) not in self.supported_products:
@@ -221,7 +221,7 @@ class Surveyor():
 
         # create logging file handler
         current_time = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
-        log_file_name = current_time + f'.{product_str}_{os.urandom(6).hex()}_{profile}.log'
+        log_file_name = current_time + f'.{product_str}_{os.urandom(6).hex()}_{self.product_args.get("profile")}.log'
         handler = logging.FileHandler(os.path.join(log_dir, log_file_name))
         handler.setLevel(logging.DEBUG)
         handler.setFormatter(logging.Formatter(self.log_format))
@@ -246,7 +246,6 @@ class Surveyor():
         kwargs["pq"] = s1_use_powerquery if isinstance(s1_use_powerquery, bool) else True
         
         kwargs["standardized"] = standardized if isinstance(standardized, bool) else True
-        kwargs["profile"] = profile
         
         # instantiate a product class instance based on the product string
         try:
@@ -560,16 +559,18 @@ if __name__ == "__main__":
             )
 
         if ctx.invoked_subcommand is None:
-            Surveyor('cbr').survey(**ctx.obj.__dict__)
+            Surveyor('cbr').survey(**filtered_ctx_object)
 
-
+    def filtered_ctx_object(ctx):
+        return {k:v for k,v in ctx.obj.__dict__.items() if k != "profile"}
+    
     # Cortex options
     @cli.command('cortex', help="Query Cortex XDR")
     @click.option("--creds", 'creds', help="Path to credential file", type=click.Path(exists=True), required=True)
     @click.pass_context
     def cortex(ctx, creds: Optional[str]) -> None:
 
-        Surveyor('cortex', creds_file=creds).survey(**ctx.obj.__dict__)
+        Surveyor('cortex', creds_file=creds, profile=ctx.obj.profile).survey(**filtered_ctx_object)
 
     # S1 options
     @cli.command('s1', help="Query SentinelOne")
@@ -590,8 +591,9 @@ if __name__ == "__main__":
                  creds_file=creds, 
                  s1_account_ids=account_id, 
                  s1_account_names=account_name, 
-                 s1_site_ids=site_id
-                 ).survey(**ctx.obj.__dict__)
+                 s1_site_ids=site_id,
+                 profile = ctx.obj.profile
+                 ).survey(**filtered_ctx_object)
 
 
     # CbC options
@@ -603,8 +605,9 @@ if __name__ == "__main__":
 
         Surveyor('cbc',
                  cbc_device_group=list(device_group) if device_group else None,
-                 cbc_device_policy=list(device_policy) if device_policy else None
-                 ).survey(**ctx.obj.__dict__)
+                 cbc_device_policy=list(device_policy) if device_policy else None,
+                 profile = ctx.obj.profile
+                 ).survey(**filtered_ctx_object)
 
 
     # CbR Options
@@ -612,7 +615,7 @@ if __name__ == "__main__":
     @click.option("--sensor-group", help="Name of sensor group to query", multiple=True, default=None)
     @click.pass_context
     def cbr(ctx, sensor_group: Optional[Tuple]) -> None:
-        Surveyor(product="cbr", cbr_sensor_group=sensor_group).survey(**ctx.obj.__dict__)
+        Surveyor(product="cbr", cbr_sensor_group=sensor_group, profile = ctx.obj.profile).survey(**filtered_ctx_object)
 
 
     # DFE options
@@ -620,7 +623,7 @@ if __name__ == "__main__":
     @click.option("--creds", 'creds', help="Path to credential file", type=click.Path(exists=True), required=True)
     @click.pass_context
     def dfe(ctx, creds: Optional[str]) -> None:
-        Surveyor('dfe', creds_file=creds).survey(**ctx.obj.__dict__)
+        Surveyor('dfe', creds_file=creds, profile = ctx.obj.profile).survey(**filtered_ctx_object)
 
     def create_generic_product_command(name: str) -> Callable:
         @click.pass_context
