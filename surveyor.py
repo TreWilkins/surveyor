@@ -5,6 +5,7 @@ if sys.version_info.major == 3 and sys.version_info.minor < 10:
     raise Exception(f'Python 3.10+ is required to run Surveyor (current: {sys.version_info.major}.{sys.version_info.minor})')
 
 import yaml
+from tqdm import tqdm
 import csv
 import json
 import click
@@ -157,6 +158,7 @@ class Surveyor():
                save_to_csv_file: bool = False,
                standardized: bool = True, 
                save_dir: Optional[str] = "results",
+               use_tqdm: bool = False,
                **kwargs) -> list:
         
         '''
@@ -186,10 +188,11 @@ class Surveyor():
             save_dir: str - Directory where results will be saved. Defauly `results` of the project folder.
             standardized: (bool) - By default, when requesting days, minutes, username, or a hostname during a search, these arguments can be appended to a query which may cause the query to fail. To run a query with no alterations, set standardized to False. This is most useful for freeform queries, if using definition files, sigma rules, or IoC lists, this should not cause any adverse impacts
             s1_use_powerquery: (bool) - Specify if S1 should use PowerQuery by default instead of Deep Visibility. Default is True.
+            use_tqdm: (bool) - Use tqdm for progress bar. Default False.
         Returns:
             list of results
         '''
-
+        
         if save_to_csv_file or save_to_json_file:
             os.makedirs(save_dir, exist_ok=True) 
 
@@ -295,7 +298,7 @@ class Surveyor():
                 product.process_search(Tag(label), base_query, query)
 
                 for tag, results in product.get_results().items():
-                    collected_results.extend(self._save_results(results, tag, writer))
+                    collected_results.extend(self._save_results(results, tag, writer, use_tqdm))
 
             # run search based on IoC list
             if ioc_list:
@@ -309,7 +312,7 @@ class Surveyor():
                 product.nested_process_search(Tag(label, source_file), {ioc_type: ioc_list}, base_query)
 
                 for tag, results in product.get_results().items():
-                    collected_results.extend(self._save_results(results, tag, writer))
+                    collected_results.extend(self._save_results(results, tag, writer, use_tqdm))
                         
             # run search against definition
             if definitions:
@@ -317,7 +320,7 @@ class Surveyor():
                     source_file = None
                     if isinstance(definition, str):
                         if not os.path.exists(definition):
-                            repo_deffile: str = os.path.join(os.path.dirname(__file__), 'definitions', hunt_query_file)
+                            repo_deffile: str = os.path.join(os.path.dirname(__file__), 'definitions', definition)
                             if not repo_deffile.endswith('.json'):
                                 repo_deffile = repo_deffile + '.json'
 
@@ -326,8 +329,11 @@ class Surveyor():
                                 definition = repo_deffile
                             else:
                                 self.log.error(f"The definition file {repo_deffile} doesn't exist. Please try again.")
-                        source_file = definition
-                        definition = json.load(definition)
+                        
+                        source_file = os.path.basename(definition)
+                        with open(definition) as f:
+                            definition = f.read()
+                        definition = json.loads(definition)
 
                     elif not isinstance(definition, dict):
                         raise TypeError(f"Definition file in unsupported format {type(definition)}, expected format --> dict")
@@ -338,19 +344,19 @@ class Surveyor():
                         if product.has_results():
                             # write results as they become available
                             for tag, nested_results in product.get_results(final_call=False).items():
-                                collected_results.extend(self._save_results(nested_results, tag, writer))
+                                collected_results.extend(self._save_results(nested_results, tag, writer, use_tqdm))
                                 
                             # ensure results are only written once
                             product.clear_results()
 
                     # write any remaining results
                     for tag, nested_results in product.get_results().items():
-                        collected_results.extend(self._save_results(nested_results, tag, writer))
+                        collected_results.extend(self._save_results(nested_results, tag, writer, use_tqdm))
                     
             # if there's sigma rules to be processed
             if sigma_rules:
                 for sigma_rule in sigma_rules:
-                    source_file = sigma_rule if os.path.isfile(sigma_rule) else None
+                    source_file = os.path.basename(sigma_rule) if isinstance(sigma_rule, str) and os.path.isfile(sigma_rule) else None
                     pq_check = True if s1_use_powerquery else False
                     translated_rules = sigma_translation(product.product, [sigma_rule], pq_check)
                     if len(translated_rules['queries']) != len(sigma_rules):
@@ -364,14 +370,14 @@ class Surveyor():
                         if product.has_results():
                             # write results as they become available
                             for tag, nested_results in product.get_results(final_call=False).items():
-                                collected_results.extend(self._save_results(nested_results, tag, writer))
+                                collected_results.extend(self._save_results(nested_results, tag, writer, use_tqdm))
                             
                             # ensure results are only written once
                             product.clear_results()
 
                     # write any remaining results
                     for tag, nested_results in product.get_results().items():
-                        collected_results.extend(self._save_results(nested_results, tag, writer))
+                        collected_results.extend(self._save_results(nested_results, tag, writer, use_tqdm))
 
             if hunt_query_file:
                 queries = []
@@ -404,7 +410,7 @@ class Surveyor():
                         product.process_search(Tag(label, hunt_query_file), base_query, query)
 
                         for tag, results in product.get_results().items():
-                            collected_results.extend(self._save_results(results, tag, writer))
+                            collected_results.extend(self._save_results(results, tag, writer, use_tqdm))
 
             if collected_results:
                 logging.info(f"Total results: {len(collected_results)}")
@@ -425,15 +431,21 @@ class Surveyor():
             self.log.error(f'Caught {type(e).__name__} (see log for details): {e}')
 
 
-    def _save_results(self, results: list[Result], tag: Tag, writer:csv.writer) -> Union[None, list]:
+    def _save_results(self, results: list[Result], tag: Tag, writer:csv.writer, use_tqdm: bool=False) -> Union[None, list]:
         """
         Helper function for writing search results to list and/or CSV.
         """
 
         if isinstance(tag, tuple):
             tag = tag[0]
-
-        self.log.info(f"-->{tag.tag}: {len(results)} results")
+        
+        if use_tqdm:
+            if len(results) > 0:
+                tqdm.write(f"\033[92m-->{tag.tag}: {len(results)} results \033[0m")
+            else:
+                tqdm.write(f"-->{tag.tag}: {len(results)} results")
+        else:
+            self.log.info(f"-->{tag.tag}: {len(results)} results")
 
         for idx, result in enumerate(results):
             result = result.__dict__
@@ -492,6 +504,9 @@ class CLIExecutionOptions:
     sigma_dir: Optional[str]
     log_dir: str
     s1_use_powerquery: bool
+    save_to_csv_file: bool
+    save_to_json_file:bool
+    use_tqdm: bool
 
 if __name__ == "__main__":
     # noinspection SpellCheckingInspection
@@ -516,6 +531,7 @@ if __name__ == "__main__":
     # different ways you can survey the EDR
     @click.option("--deffile", 'def_file', help="Definition file to process (must end in .json).", type=click.STRING)
     @click.option("--defdir", 'def_dir', help="Directory containing multiple definition files.", type=click.STRING)
+    @click.option("--json", 'save_to_json_file', help="Use Deep Visibility for queries", is_flag=True, required=False)
     @click.option("--query", help="A single query to execute.")
     @click.option("--iocfile", 'ioc_file', help="IOC file to process. One IOC per line. REQUIRES --ioctype")
     @click.option("--ioctype", 'ioc_type', help="One of: ipaddr, domain, md5, sha256")
@@ -544,7 +560,8 @@ if __name__ == "__main__":
             def_file: Optional[str],
             sigma_rule: Optional[str],
             sigma_dir: Optional[str],
-            log_dir: str
+            log_dir: str,
+            save_to_json_file: bool
             ) -> None:
 
         ctx.ensure_object(dict)
@@ -564,14 +581,17 @@ if __name__ == "__main__":
             sigma_rule=sigma_rule,
             sigma_dir=sigma_dir,
             log_dir=log_dir,
-            s1_use_powerquery=True
+            s1_use_powerquery=True,
+            save_to_csv_file=not save_to_json_file,
+            save_to_json_file=save_to_json_file,
+            use_tqdm=True
             )
 
         if ctx.invoked_subcommand is None:
-            Surveyor('cbr').survey(**filtered_ctx_object)
+            Surveyor('cbr').survey(**filtered_ctx_object(ctx.obj))
 
-    def filtered_ctx_object(ctx):
-        return {k:v for k,v in ctx.obj.__dict__.items() if k != "profile"}
+    def filtered_ctx_object(object):
+        return {k:v for k,v in object.__dict__.items() if k != "profile"}
     
     # Cortex options
     @cli.command('cortex', help="Query Cortex XDR")
@@ -579,7 +599,7 @@ if __name__ == "__main__":
     @click.pass_context
     def cortex(ctx, creds: Optional[str]) -> None:
 
-        Surveyor('cortex', creds_file=creds, profile=ctx.obj.profile).survey(**filtered_ctx_object)
+        Surveyor('cortex', creds_file=creds, profile=ctx.obj.profile).survey(**filtered_ctx_object(ctx.obj))
 
     # S1 options
     @cli.command('s1', help="Query SentinelOne")
@@ -594,7 +614,7 @@ if __name__ == "__main__":
         site_id = list(site_id) if site_id else None
         account_id = list(account_id) if account_id else None
         account_name = list(account_name) if account_name else None
-        ctx.obj["s1_use_powerquery"] = False if not dv else True
+        ctx.obj["s1_use_powerquery"] = not dv
         
         Surveyor("s1", 
                  creds_file=creds, 
@@ -602,7 +622,7 @@ if __name__ == "__main__":
                  s1_account_names=account_name, 
                  s1_site_ids=site_id,
                  profile = ctx.obj.profile
-                 ).survey(**filtered_ctx_object)
+                 ).survey(**filtered_ctx_object(ctx.obj))
 
 
     # CbC options
@@ -616,7 +636,7 @@ if __name__ == "__main__":
                  cbc_device_group=list(device_group) if device_group else None,
                  cbc_device_policy=list(device_policy) if device_policy else None,
                  profile = ctx.obj.profile
-                 ).survey(**filtered_ctx_object)
+                 ).survey(**filtered_ctx_object(ctx.obj))
 
 
     # CbR Options
@@ -624,7 +644,8 @@ if __name__ == "__main__":
     @click.option("--sensor-group", help="Name of sensor group to query", multiple=True, default=None)
     @click.pass_context
     def cbr(ctx, sensor_group: Optional[Tuple]) -> None:
-        Surveyor(product="cbr", cbr_sensor_group=sensor_group, profile = ctx.obj.profile).survey(**filtered_ctx_object)
+        print(ctx.obj.profile)
+        Surveyor(product="cbr", cbr_sensor_group=sensor_group, profile = ctx.obj.profile).survey(**filtered_ctx_object(ctx.obj))
 
 
     # DFE options
@@ -632,7 +653,7 @@ if __name__ == "__main__":
     @click.option("--creds", 'creds', help="Path to credential file", type=click.Path(exists=True), required=True)
     @click.pass_context
     def dfe(ctx, creds: Optional[str]) -> None:
-        Surveyor('dfe', creds_file=creds, profile = ctx.obj.profile).survey(**filtered_ctx_object)
+        Surveyor('dfe', creds_file=creds, profile = ctx.obj.profile).survey(**filtered_ctx_object(ctx.obj))
 
     def create_generic_product_command(name: str) -> Callable:
         @click.pass_context

@@ -18,7 +18,6 @@ from requests.adapters import HTTPAdapter
 from requests.exceptions import HTTPError
 
 from common import Product, Tag, Result, AuthenticationError
-from help import datetime_to_epoch_millis
 
 
 @dataclass
@@ -581,8 +580,8 @@ class SentinelOne(Product):
             # build request body for DV API call
             params = self._get_default_body()
             params.update({
-                "fromDate": datetime_to_epoch_millis(start_date),
-                "toDate": datetime_to_epoch_millis(end_date),
+                "fromDate": self.datetime_to_epoch_millis(start_date),
+                "toDate": self.datetime_to_epoch_millis(end_date),
                 "limit": self._limit,
                 "query": merged_query
             })
@@ -780,3 +779,9 @@ class SentinelOne(Product):
             return dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
         except:
             return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+        
+    def datetime_to_epoch_millis(self, date: datetime) -> int:
+        """
+        Convert a datetime object to an epoch timestamp in milliseconds.
+        """
+        return int((date - datetime(1970, 1, 1, tzinfo=timezone.utc)).total_seconds() * 1000)

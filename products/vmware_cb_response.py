@@ -122,6 +122,9 @@ class CbResponse(Product):
                 time = datetime.strptime(time, "%Y-%m-%d %H:%M:%S")
             except ValueError:
                 return time
+            
+        if isinstance(time, datetime):
+            time = time.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
         
         return time
     
