@@ -1,0 +1,6 @@
+pytest
+pytest-mock
+mypy
+types-requests
+types-PyYAML
+types-tqdm

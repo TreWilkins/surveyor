@@ -9,8 +9,8 @@ import csv
 import json
 import logging
 import requests
-import yaml # type: ignore
-from tqdm import tqdm # type: ignore
+import yaml
+from tqdm import tqdm
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional, Union, List, Callable, Tuple
