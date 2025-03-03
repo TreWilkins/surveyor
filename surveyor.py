@@ -245,17 +245,19 @@ class Surveyor():
 
         # create logging file handler
         current_time = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
-        log_file_name = current_time + f'.{product_str}_{os.urandom(6).hex()}_{self.product_args.get("profile")}.log'
+        log_file_name = "_".join([current_time, product_str, os.urandom(6).hex(), f'{self.product_args.get("profile")}.log'])
         handler = logging.FileHandler(os.path.join(log_dir, log_file_name))
         handler.setLevel(logging.DEBUG)
         handler.setFormatter(logging.Formatter(self.log_format))
         root.addHandler(handler)
 
         writer = None
+        output_file = os.path.join(save_dir, "_".join([current_time, os.urandom(6).hex(), str(self.product_args.get("profile"))]))
+
         if save_to_csv_file:
-            output_file = os.path.join(save_dir, "_".join([current_time, f'{str(self.product_args.get("profile"))}.csv' if not output else output]))
-            output_file = open(output_file, 'w', newline='', encoding='utf-8') # type:ignore
-            writer = csv.writer(output_file) # type:ignore
+            csv_output = os.path.join(save_dir, f'{output_file}.csv' if not output else output)
+            csv_output = open(csv_output, 'w', newline='', encoding='utf-8') # type:ignore
+            writer = csv.writer(csv_output) # type:ignore
             writer.writerow(list(Result.__annotations__.keys()))
 
         if len(self.product_args) > 0 and isinstance(self.product_args, dict):
@@ -437,20 +439,21 @@ class Surveyor():
 
             if collected_results:
                 logging.info(f"Total results: {len(collected_results)}")
+
+                if writer:
+                    csv_output.close() # type:ignore
+                    logging.info(f"Saved results to {csv_output.name}") # type:ignore
+                    if use_tqdm:
+                        tqdm.write(f"\033[95mResults saved: {csv_output.name}\033[0m") # type:ignore
+
                 if save_to_json_file:
                     os.makedirs(save_dir, exist_ok=True)
-                    output_file = os.path.join(save_dir, "_".join([current_time, f'{str(self.product_args.get("profile"))}.json' if not output else output]))
+                    json_output = os.path.join(save_dir, f'{output_file}.json' if not output else output)
                     
-                    with open(output_file, "w") as f:
+                    with open(json_output, "w") as f:
                         json.dump(collected_results, f)
 
-                    logging.info(f"Saved results to {output_file}")
-                
-                if writer:
-                    output_file.close() # type:ignore
-                    logging.info(f"Saved results to {output_file.name}") # type:ignore
-                    if use_tqdm:
-                        tqdm.write(f"\033[95mResults saved: {output_file.name}\033[0m") # type:ignore
+                    logging.info(f"Saved results to {json_output}")
         
         except KeyboardInterrupt:
             self.log.error("Caught CTRL-C. Exiting...")
