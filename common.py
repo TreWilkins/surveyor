@@ -17,16 +17,16 @@ class Tag:
 
 @dataclass(eq=True, frozen=True)
 class Result:
-    hostname: Union[str, None]
-    username: Union[str, None]
-    path: Union[str, None]
-    command_line: Union[str, None]
-    timestamp: Union[str, None]
-    label: Union[str, None]
-    profile: Union[str, None]
-    product: Union[str, None]
-    query: Union[str, None]
-    source: Union[str, None]
+    hostname: Optional[str]
+    username: Optional[str]
+    path: Optional[str]
+    command_line: Optional[str]
+    timestamp: Optional[str]
+    label: Optional[str]
+    profile: Optional[str]
+    product: Optional[str]
+    query: Optional[str]
+    source: Optional[str]
     raw_data: Optional[Tuple] = None
 
 
