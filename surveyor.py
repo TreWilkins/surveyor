@@ -49,7 +49,7 @@ class Surveyor():
     product_args: dict = None # type:ignore
     log: logging.Logger
     supported_products: tuple = ('cbr', 'cbc', 'dfe', 'cortex', 's1')
-    log_format = '[%(asctime)s] [%(levelname)-8s] [%(name)-36s] [%(filename)-20s:%(lineno)-4s] %(message)s'
+    log_format: str = '[%(asctime)s] [%(levelname)-8s] [%(name)-36s] [%(filename)-20s:%(lineno)-4s] %(message)s'
 
     def __init__(self,
                  product: Optional[str] = None,
@@ -255,7 +255,7 @@ class Surveyor():
         output_file = os.path.join(save_dir, "_".join([current_time, os.urandom(6).hex(), str(self.product_args.get("profile"))]))
 
         if save_to_csv_file:
-            csv_output = f'{output_file}.csv' if not output else output
+            csv_output: str = f'{output_file}.csv' if not output else output
             csv_output = open(csv_output, 'w', newline='', encoding='utf-8') # type:ignore
             writer = csv.writer(csv_output) # type:ignore
             writer.writerow(list(Result.__annotations__.keys()))
@@ -286,7 +286,7 @@ class Surveyor():
 
         # base_query stores the filters applied to the product query
         # initial query is retrieved from product instance
-        base_query = product.base_query()
+        base_query: dict = product.base_query()
 
         # placeholder for sigma rules if sigmarule or sigmadir is selected
         sigma_rules = list() if not sigma_rule else [sigma_rule]
