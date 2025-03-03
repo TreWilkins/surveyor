@@ -91,7 +91,7 @@ class Surveyor():
         match product:
             case 'cbr':
                 if cbr_sensor_group:
-                    args['sensor_group'] = cbr_sensor_group if isinstance(cbr_sensor_group, list) else [cbr_sensor_group] # type:ignore
+                    args['sensor_group'] = cbr_sensor_group if isinstance(cbr_sensor_group, (list, tuple)) else [cbr_sensor_group] # type:ignore
                 if token:
                     args['token'] = token
                 if url:
@@ -100,9 +100,9 @@ class Surveyor():
                 # If no credentials can be found or are not passed in as arguments, an exception will be raised
             case'cbc':
                 if cbc_device_group:
-                    args['device_group'] = cbc_device_group if (isinstance(cbc_device_group, list) or isinstance(cbc_device_group, tuple)) else [cbc_device_group] # type:ignore
+                    args['device_group'] = cbc_device_group if isinstance(cbc_device_group, (list, tuple)) else [cbc_device_group] # type:ignore
                 if cbc_device_policy:
-                    args['device_policy'] = cbc_device_policy if (isinstance(cbc_device_policy, list) or isinstance(cbc_device_policy, tuple)) else [cbc_device_policy] # type:ignore
+                    args['device_policy'] = cbc_device_policy if isinstance(cbc_devive_policy, (list, tuple)) else [cbc_device_policy] # type:ignore
                 if token:
                     args['token'] = token
                 if url:
@@ -124,7 +124,7 @@ class Surveyor():
                     raise Exception("DFE requires either a creds_file, or token, or tenantId, appId, and appSecret to be specified")
             case 'cortex':
                 if cortex_tenant_ids:
-                    args['tenant_ids'] = cortex_tenant_ids if (isinstance(cortex_tenant_ids, list) or isinstance(cortex_tenant_ids, tuple)) else [cortex_tenant_ids] # type:ignore
+                    args['tenant_ids'] = cortex_tenant_ids if (isinstance(cortex_tenant_ids, (list, tuple)) else [cortex_tenant_ids] # type:ignore
                 if token:
                     args['api_key'] = token
                 if cortex_api_key_id:
@@ -140,11 +140,11 @@ class Surveyor():
                     raise Exception("Cortex requires either a creds_file or token (api_key), api_key_id, and url to be specified")
             case 's1':
                 if s1_site_ids:
-                    args['site_ids'] = s1_site_ids if (isinstance(s1_site_ids, list) or isinstance(s1_site_ids, tuple)) else [s1_site_ids] # type:ignore
+                    args['site_ids'] = s1_site_ids if isinstance(s1_site_ids, (list, tuple)) else [s1_site_ids] # type:ignore
                 if s1_account_ids:
-                    args['account_ids'] = s1_account_ids if (isinstance(s1_account_ids, list) or isinstance(s1_account_ids, tuple)) else [s1_account_ids] # type:ignore
+                    args['account_ids'] = s1_account_ids if isinstance(s1_account_ids, (list, tuple)) else [s1_account_ids] # type:ignore
                 if s1_account_names:
-                    args['account_names'] = s1_account_names if (isinstance(s1_account_names, list) or isinstance(s1_account_names, tuple)) else [s1_account_names] # type:ignore
+                    args['account_names'] = s1_account_names if isinstance(s1_account_names, (list, tuple)) else [s1_account_names] # type:ignore
                 if token:
                     args['token'] = token
                 if url:
