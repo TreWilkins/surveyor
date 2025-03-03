@@ -157,7 +157,6 @@ class Surveyor():
       
         self.product_args = args
 
-
     def survey(self,
                hostname: Optional[str] = None,
                days: Optional[int] = None,
@@ -466,7 +465,7 @@ class Surveyor():
 
         return collected_results
 
-    def _save_results(self, results: list[Result], tag: Tag, writer: Union[csv.writer, None], use_tqdm: bool=False) -> list: # type:ignore
+    def _save_results(self, results: list[Result], tag: Tag, writer: Union[csv.writer, None], use_tqdm: bool = False) -> list: # type:ignore
         """
         Helper function for writing search results to list and/or CSV.
         """
@@ -549,7 +548,7 @@ if __name__ == "__main__":
     # different ways you can survey the EDR
     @click.option("--deffile", 'def_file', help="Definition file to process (must end in .json).", type=click.STRING)
     @click.option("--defdir", 'def_dir', help="Directory containing multiple definition files.", type=click.STRING)
-    @click.option("--huntdir", 'hunt_dir', help="Hunt file to process (must end in .json).", type=click.STRING)
+    @click.option("--huntfile", 'hunt_file', help="Hunt file to process (must end in .json).", type=click.STRING)
     @click.option("--json", 'save_to_json_file', help="Use Deep Visibility for queries", is_flag=True, required=False)
     @click.option("--query", help="A single query to execute.")
     @click.option("--iocfile", 'ioc_file', help="IOC file to process. One IOC per line. REQUIRES --ioctype")
