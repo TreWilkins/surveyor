@@ -8,7 +8,7 @@ sys.path.append(os.getcwd())
 from products.microsoft_defender_for_endpoints import DefenderForEndpoints
 from common import Tag
 
-def test_init_lower_limit_option(tmpdir, mocker):
+def test_init_lower_limit_option_1(tmpdir, mocker):
     mocker.patch.object(DefenderForEndpoints, '_authenticate')
     cred_file_path = tmpdir.mkdir('test_dir').join('test_creds.ini')
     cred_file_path.write("asdfasdfasdf")
@@ -24,7 +24,7 @@ def test_init_upper_limit_option(tmpdir, mocker):
     assert dfe_product._limit == -1
 
 
-def test_init_lower_limit_option(tmpdir, mocker):
+def test_init_lower_limit_option_10(tmpdir, mocker):
     mocker.patch.object(DefenderForEndpoints, '_authenticate')
     cred_file_path = tmpdir.mkdir('test_dir').join('test_creds.ini')
     cred_file_path.write("asdfasdfasdf")

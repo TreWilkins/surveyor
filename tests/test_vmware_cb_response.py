@@ -5,7 +5,7 @@ import logging
 import json
 from dataclasses import dataclass
 from unittest.mock import patch
-from cbapi.response.models import Process
+from cbapi.response.models import Process # type:ignore 
 sys.path.append(os.getcwd())
 from products.vmware_cb_response import CbResponse
 from common import Tag

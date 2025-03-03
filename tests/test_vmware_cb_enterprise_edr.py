@@ -104,7 +104,7 @@ def test_process_search(cbc_product : CbEnterpriseEdr, mocker):
     cbc_product._results = {}
     mocker.patch.object(cbc_product, 'perform_query')
     cbc_product.process_search(Tag('test_field'), {}, 'process_name:cmd.exe')
-    cbc_product.perform_query.assert_called_once_with(Tag('test_field'), {}, 'process_name:cmd.exe')
+    cbc_product.perform_query.assert_called_once_with(Tag('test_field'), {}, 'process_name:cmd.exe') # type:ignore
 
 
 def test_nested_process_search(cbc_product : CbEnterpriseEdr, mocker):
@@ -112,7 +112,7 @@ def test_nested_process_search(cbc_product : CbEnterpriseEdr, mocker):
         programs = json.load(f)
     
     cbc_product.log = logging.getLogger('pytest_surveyor')
-    cbc_product._sensor_group = None
+    cbc_product._sensor_group = None # type:ignore
     cbc_product._results = {}
     cbc_product._conn = mocker.Mock()
     with patch.object(cbc_product, 'perform_query') as perform_query:

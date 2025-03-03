@@ -148,9 +148,9 @@ def test_process_queries_full_query(cortex_product : CortexXDR, mocker):
 
     cortex_product.log = logging.getLogger('pytest_surveyor')
 
-    json_response = {'reply': []}
+    json_response: dict = {'reply': []} 
     response_mock = mocker.Mock()
-    response_mock.json.return_value = json_response
+    response_mock.json.return_value = json_response 
 
     cortex_product._session = mocker.Mock()
     mocker.patch('products.cortex_xdr.CortexXDR._get_xql_results', return_value= [[], 0])
@@ -180,7 +180,7 @@ def test_process_queries_query_parameter(cortex_product : CortexXDR, mocker):
 
     cortex_product.log = logging.getLogger('pytest_surveyor')
 
-    json_response = {'reply': []}
+    json_response: dict = {'reply': []}
     response_mock = mocker.Mock()
     response_mock.json.return_value = json_response
 
