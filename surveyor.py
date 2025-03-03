@@ -102,7 +102,7 @@ class Surveyor():
                 if cbc_device_group:
                     args['device_group'] = cbc_device_group if isinstance(cbc_device_group, (list, tuple)) else [cbc_device_group] # type:ignore
                 if cbc_device_policy:
-                    args['device_policy'] = cbc_device_policy if isinstance(cbc_devive_policy, (list, tuple)) else [cbc_device_policy] # type:ignore
+                    args['device_policy'] = cbc_device_policy if isinstance(cbc_device_policy, (list, tuple)) else [cbc_device_policy] # type:ignore
                 if token:
                     args['token'] = token
                 if url:
