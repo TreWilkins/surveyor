@@ -255,7 +255,7 @@ class Surveyor():
         output_file = os.path.join(save_dir, "_".join([current_time, os.urandom(6).hex(), str(self.product_args.get("profile"))]))
 
         if save_to_csv_file:
-            csv_output = os.path.join(save_dir, f'{output_file}.csv' if not output else output)
+            csv_output = f'{output_file}.csv' if not output else output
             csv_output = open(csv_output, 'w', newline='', encoding='utf-8') # type:ignore
             writer = csv.writer(csv_output) # type:ignore
             writer.writerow(list(Result.__annotations__.keys()))
@@ -448,7 +448,7 @@ class Surveyor():
 
                 if save_to_json_file:
                     os.makedirs(save_dir, exist_ok=True)
-                    json_output = os.path.join(save_dir, f'{output_file}.json' if not output else output)
+                    json_output = f'{output_file}.json' if not output else output
                     
                     with open(json_output, "w") as f:
                         json.dump(collected_results, f)
