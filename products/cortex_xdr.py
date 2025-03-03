@@ -229,7 +229,7 @@ class CortexXDR(Product):
 
     def _process_queries(self) -> None:
         for tag, queries in self._queries.items():
-            results = []
+            results = set()
             for query in queries:
                 if query.full_query is not None:
                     query_string = query.full_query
@@ -288,9 +288,9 @@ class CortexXDR(Product):
                         source=tag.source,
                         raw_data=(json.dumps(event)) # type:ignore
                         )
-                    results.append(result)
+                    results.add(result)
 
-            self._results[tag].extend(results)
+            self._results[tag].extend(list(results))
                         
         self._queries.clear()
 

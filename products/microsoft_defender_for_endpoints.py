@@ -46,19 +46,19 @@ class DefenderForEndpoints(Product):
     creds_file: str  # path to credential configuration file
     _token: str  # AAD access token
     _limit: int = -1
-    _tenantId: Optional[str] = None 
+    _tenantId: Optional[str] = None
     _appId: Optional[str] = None
     _appSecret: Optional[str] = None
     _standardized: bool = True
     
     def __init__(self, **kwargs):
 
-        self.profile = kwargs['profile'] if 'profile' in kwargs else 'default'
-        self.creds_file = kwargs['creds_file'] if 'creds_file' in kwargs else ''
-        self._token = kwargs['token'] if 'token' in kwargs else ''
-        self._tenantId = kwargs['tenantId'] if 'tenantId' in kwargs else None
-        self._appId = kwargs['appId'] if 'appId' in kwargs else None
-        self._appSecret = kwargs['appSecret'] if 'appSecret' in kwargs else None
+        self.profile = kwargs.get('profile', 'default')
+        self.creds_file = kwargs.get('creds_file', '')
+        self._token = kwargs.get('token', '')
+        self._tenantId = kwargs.get('tenantId', '')
+        self._appId = kwargs.get('appId', '')
+        self._appSecret = kwargs.get('appSecret', '')
         self._standardized = False if kwargs.get("standardized")==False else True
 
         if 100000 >= int(kwargs.get('limit', -1)) > self._limit:
@@ -68,10 +68,10 @@ class DefenderForEndpoints(Product):
 
     def _authenticate(self) -> None:
         
-        self.verify_creds()
-        
+        self.verify_creds
+
         if not self._token:
-            self._token = self._get_aad_token(self._tenantId, self._appId, self._appSecret)
+            self._token = self._get_aad_token(tenant_id=self._tenantId, app_id=self._appId, app_secret=self._appSecret) # type:ignore
 
     def _get_aad_token(self, tenant_id: str, app_id: str, app_secret: str) -> str:
         """
@@ -94,7 +94,7 @@ class DefenderForEndpoints(Product):
         return response.json()['access_token']
 
     def _post_advanced_query(self, data: dict, headers: dict, tag:Tag) -> list[Result]:
-        results = set()
+        results: set = set()
 
         try:
             url = "https://api.securitycenter.microsoft.com/api/advancedqueries/run"
@@ -149,7 +149,7 @@ class DefenderForEndpoints(Product):
         self._add_results(list(results), tag)
 
     def nested_process_search(self, tag: Tag, criteria: dict, base_query: dict) -> None:
-        query_base = self.build_query(base_query)
+        query_base: str = self.build_query(base_query)
 
         try:
             for search_field, terms in criteria.items():
@@ -184,7 +184,7 @@ class DefenderForEndpoints(Product):
             self.log.exception("Caught CTRL-C. Returning what we have...")
 
     def build_query(self, filters: dict) -> str:
-        query_base = []
+        query_base: list = list()
         if self._standardized == True:
             for key, value in filters.items():
                 if key == 'days':
@@ -214,7 +214,7 @@ class DefenderForEndpoints(Product):
             if self.profile not in config:
                 raise ValueError(f'Profile {self.profile} is not present in credential file')
 
-            section = config[self.profile]
+            section: Union[configparser.SectionProxy, dict] = config[self.profile]
 
             if 'token' in section:
                 self._token = section['token']

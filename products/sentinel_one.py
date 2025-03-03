@@ -727,7 +727,7 @@ class SentinelOne(Product):
         """
         return int((date - datetime(1970, 1, 1, tzinfo=timezone.utc)).total_seconds() * 1000)
     
-    def _pq_events(body: dict):
+    def _pq_events(self, body: dict):
         event_header = [item['name'] for item in body['data']['columns']]
         return [dict(zip(event_header, event)) for event in body['data']['data'] if event]
         
@@ -735,33 +735,37 @@ class SentinelOne(Product):
     def verify_creds(self) -> None:
         if self._url and self._token:
             self._url = self._url.rstrip('/')
+        
+        elif isinstance(self.creds_file, str):
 
-        elif os.path.isfile(self.creds_file):
-            config = configparser.ConfigParser()
-            config.read(self.creds_file)
+            if os.path.isfile(self.creds_file): 
+                config = configparser.ConfigParser()
+                config.read(self.creds_file)
 
-            if self.profile and self.profile not in config:
-                raise ValueError(f'Profile {self.profile} is not present in credential file or no profile has been provided. Please validate profile or ensure profile is provided.')
+                if self.profile and self.profile not in config:
+                    raise ValueError(f'Profile {self.profile} is not present in credential file or no profile has been provided. Please validate profile or ensure profile is provided.')
 
-            section = config[self.profile]
+                section = config[self.profile]
 
-            # ensure configuration has required fields
-            if 'url' not in section:
-                raise ValueError(f'S1 configuration invalid, ensure "url" is specified')
+                # ensure configuration has required fields
+                if 'url' not in section:
+                    raise ValueError(f'S1 configuration invalid, ensure "url" is specified')
 
-            # extract required information from configuration
-            if 'token' in section:
-                self._token = section['token']
-            else:
-                if 'S1_TOKEN' not in os.environ:
-                    raise ValueError(f'S1 configuration invalid, specify "token" configuration value or "S1_TOKEN" '
-                                    f'environment variable')
-                self._token = os.environ['S1_TOKEN']
+                # extract required information from configuration
+                if 'token' in section:
+                    self._token = section['token']
+                else:
+                    if 'S1_TOKEN' not in os.environ:
+                        raise ValueError(f'S1 configuration invalid, specify "token" configuration value or "S1_TOKEN" '
+                                        f'environment variable')
+                    self._token = os.environ['S1_TOKEN']
 
-            self._url = section['url'].rstrip('/')
+                self._url = section['url'].rstrip('/')
 
-        elif not os.path.isfile(self.creds_file):
-            raise ValueError(f'Credential file {self.creds_file} does not exist')
+            if not os.path.isfile(self.creds_file):
+                raise ValueError(f'Credential file {self.creds_file} does not exist')
+        else:
+            raise Exception("No URL and Token or credential file provided.")
 
         if not self._url.startswith('https://'):
             raise ValueError(f'URL must start with "https://"')
