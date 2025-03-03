@@ -2,7 +2,7 @@ import logging
 import os
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Tuple, Optional, Any
+from typing import Tuple, Optional, Any, Union
 
 
 class AuthenticationError(Exception):
@@ -17,16 +17,16 @@ class Tag:
 
 @dataclass(eq=True, frozen=True)
 class Result:
-    hostname: str
-    username: str
-    path: str
-    command_line: str
-    timestamp: str
-    label: str
-    profile: str
-    product: str
-    query: str
-    source: str
+    hostname: Union[str, None]
+    username: Union[str, None]
+    path: Union[str, None]
+    command_line: Union[str, None]
+    timestamp: Union[str, None]
+    label: Union[str, None]
+    profile: Union[str, None]
+    product: Union[str, None]
+    query: Union[str, None]
+    source: Union[str, None]
     raw_data: Optional[Tuple] = None
 
 

@@ -325,7 +325,7 @@ class CortexXDR(Product):
                         profile=self.profile,
                         product=self.product,
                         source=tag.source,
-                        raw_data=(json.dumps(event))
+                        raw_data=(json.dumps(event)) # type:ignore
                         )
                     results.append(result)
 

@@ -144,7 +144,7 @@ class CbEnterpriseEdr(Product):
                         profile=self.profile,
                         product=self.product,
                         source=tag.source,
-                        raw_data=(json.dumps(deets))
+                        raw_data=(json.dumps(deets)) # type:ignore
                         )
                     
                     self._results[tag].append(result)
@@ -160,11 +160,8 @@ class CbEnterpriseEdr(Product):
         except KeyboardInterrupt:
             self.log.exception("Caught CTRL-C. Returning what we have . . .")
         
-    
     def process_search(self, tag: Tag, base_query: dict, query: str) -> None:        
-        results = self.perform_query(tag, base_query, query)
-        
-        self._add_results(list(results), tag)
+        self.perform_query(tag, base_query, query)
 
     def nested_process_search(self, tag: Tag, criteria: dict, base_query: dict) -> None:
         queries = []

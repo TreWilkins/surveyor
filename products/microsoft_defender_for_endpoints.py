@@ -134,7 +134,7 @@ class DefenderForEndpoints(Product):
                         profile=self.profile,
                         product=self.product,
                         source=tag.source,
-                        raw_data=(json.dumps(res))
+                        raw_data=(json.dumps(res)) # type:ignore
                         )
                     results.add(result)
             else:

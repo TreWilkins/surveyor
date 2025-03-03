@@ -7,3 +7,4 @@ pySigma>=0.10.0
 types-requests
 pytest
 pytest-mock
+mypy

@@ -10,7 +10,7 @@ from threading import Event
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
-from typing import Optional, Tuple, Callable
+from typing import Optional, Tuple, Callable, Union
 import re
 
 import requests
@@ -163,7 +163,7 @@ class SentinelOne(Product):
         # If either of the following were passed into surveyor, their value will take precedence and the config file will not be used.
         if not any([site_ids, account_ids, account_names]):
             config = configparser.ConfigParser()
-            config.read(self.creds_file)
+            config.read(self.creds_file) # type:ignore
 
             # extract account/site ID from configuration if set
             if 'account_id' in config[self.profile]:
@@ -202,15 +202,15 @@ class SentinelOne(Product):
                             raise AuthenticationError('Failed to authenticate to SentinelOne API') from e
                         raise
 
-                    for account in response:
-                        if account['id'] not in self._account_ids:
-                            self._account_ids.append(account['id'])
+                    for account in response: # type:ignore
+                        if account['id'] not in self._account_ids: # type:ignore
+                            self._account_ids.append(account['id']) # type:ignore
 
                     counter = 0
                     temp_list = []
                 i += 1
 
-            diff = list(set(account_ids) - set(self._account_ids))
+            diff = list(set(account_ids) - set(self._account_ids)) # type:ignore
             if len(diff) > 0:
                 self.log.warning(f'Account IDs {",".join(diff)} not found.')
 
@@ -230,8 +230,8 @@ class SentinelOne(Product):
 
                 for account in response:
                     temp_account_name.append(account['name'])
-                    if account['id'] not in self._account_ids:
-                        self._account_ids.append(account['id'])
+                    if account['id'] not in self._account_ids: # type:ignore
+                        self._account_ids.append(account['id']) # type:ignore
 
             diff = list(set(account_names) - set(temp_account_name))
             if len(diff) > 0:
@@ -267,11 +267,11 @@ class SentinelOne(Product):
                                 if site['id'] not in self._site_ids:
                                     self._site_ids.append(site['id'])
 
-                                if site['accountId'] not in self._account_ids:
+                                if site['accountId'] not in self._account_ids: # type:ignore
                                     # PowerQuery won't honor Site ID filters unless the parent accounts ID is also
                                     # included in the request body
-                                    self._account_ids.append(site['accountId'])
-                            elif site['accountId'] not in self._account_ids and site['id'] not in self._site_ids:
+                                    self._account_ids.append(site['accountId']) # type:ignore
+                            elif site['accountId'] not in self._account_ids and site['id'] not in self._site_ids: # type:ignore
                                 self._site_ids.append(site['id']) 
 
                     counter = 0
@@ -418,7 +418,7 @@ class SentinelOne(Product):
             next_cursor = pagination_data['nextCursor']
             params['cursor'] = next_cursor
                 
-            return data
+        return data
 
     def _get_dv_events(self, query_id: str, cancel_event: Event) -> list[dict]:
         """
@@ -460,7 +460,7 @@ class SentinelOne(Product):
                     # query-status endpoint has a one request per second rate limit
                     time.sleep(1)
 
-            return list()
+            return list(dict())
         except Exception as e:
             raise e
 
@@ -643,7 +643,7 @@ class SentinelOne(Product):
                     username = event.get('srcProcUser')
                     path = event.get('srcProcImagePath')
                     command_line = event.get('srcProcCmdLine')
-                    timestamp = event.get('eventTime')
+                    timestamp = event.get('eventTime', '')
 
                 result = Result(
                     hostname=hostname, 
@@ -656,7 +656,7 @@ class SentinelOne(Product):
                     profile=self.profile,
                     product=self.product,
                     source=merged_tag.source,
-                    raw_data=(json.dumps(event))
+                    raw_data=(json.dumps(event)) # type:ignore
                     )
 
                 self._results[merged_tag].append(result)
@@ -771,15 +771,18 @@ class SentinelOne(Product):
 
         return self._results
     
-    def convert_time_to_iso8601(self, time:str) -> str:
-    
-        try: 
-            timestamp_seconds = int(time) / 1000
-            dt = datetime.fromtimestamp(timestamp_seconds, tz=timezone.utc)
-            return dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-        except:
-            return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+    def convert_time_to_iso8601(self, time:Union[str, None]) -> str:
         
+        current_time = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+        if time:
+            try: 
+                timestamp_seconds = int(time) / 1000
+                dt = datetime.fromtimestamp(timestamp_seconds, tz=timezone.utc)
+                return dt.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
+            except:
+                pass
+        return current_time
+    
     def datetime_to_epoch_millis(self, date: datetime) -> int:
         """
         Convert a datetime object to an epoch timestamp in milliseconds.

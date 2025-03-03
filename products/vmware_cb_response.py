@@ -112,21 +112,17 @@ class CbResponse(Product):
 
         self._add_results(list(results), tag)
 
-    def cbr_convertime_iso8601(self, time:str) -> str:
-        time = str(time)
+    def cbr_convertime_iso8601(self, time:datetime) -> str:
         
         try:
-            time = datetime.strptime(time, "%Y-%m-%d %H:%M:%S.%f")
+            time = datetime.strptime(str(time), "%Y-%m-%d %H:%M:%S.%f")
         except ValueError:
             try:
-                time = datetime.strptime(time, "%Y-%m-%d %H:%M:%S")
+                time = datetime.strptime(str(time), "%Y-%m-%d %H:%M:%S")
             except ValueError:
-                return time
+                pass
             
-        if isinstance(time, datetime):
-            time = time.strftime("%Y-%m-%dT%H:%M:%S.%fZ")
-        
-        return time
+        return time.strftime("%Y-%m-%dT%H:%M:%S.%fZ") if isinstance(time, datetime) else time
     
     def _format_result(self, proc:Process, tag:Tag, query:str) -> Result:
         return Result(
@@ -140,5 +136,5 @@ class CbResponse(Product):
             product=self.product,
             query=query,
             source=tag.source,
-            raw_data=(json.dumps(proc.original_document))
+            raw_data=(json.dumps(proc.original_document)) # type:ignore
             )

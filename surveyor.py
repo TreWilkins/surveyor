@@ -4,53 +4,74 @@ import sys
 if sys.version_info.major == 3 and sys.version_info.minor < 10:
     raise Exception(f'Python 3.10+ is required to run Surveyor (current: {sys.version_info.major}.{sys.version_info.minor})')
 
-import yaml
-from tqdm import tqdm
+import os
 import csv
 import json
-import click
 import logging
 import requests
-import dataclasses
-import os
-from typing import Optional, Union, List, Callable, Tuple
+import yaml # type: ignore
+from tqdm import tqdm # type: ignore
+from dataclasses import dataclass
 from datetime import datetime, timezone
+from typing import Optional, Union, List, Callable, Tuple
 
-from load import get_product_instance, get_products
 from common import Tag, Result, sigma_translation
+from load import get_product_instance, get_products
 
 # Application version
 current_version = "2.5.0"
 
+@dataclass
+class CLIExecutionOptions:
+    profile: str
+    hostname: Optional[str]
+    days: Optional[int]
+    minutes: Optional[int]
+    username: Optional[str]
+    limit: Optional[int]
+    ioc_list: Optional[str]
+    ioc_type: Optional[str]
+    query: Optional[str]
+    output: Optional[str]
+    def_dir: Optional[str]
+    definition: Optional[str]
+    sigma_rule: Optional[str]
+    sigma_dir: Optional[str]
+    log_dir: str
+    s1_use_powerquery: bool
+    save_to_csv_file: bool
+    save_to_json_file:bool
+    use_tqdm: bool
+
+
 class Surveyor():
-    product_args: dict = None
-    log: logging.Logger = None
+    product_args: dict = None # type:ignore
+    log: logging.Logger
     supported_products: tuple = ('cbr', 'cbc', 'dfe', 'cortex', 's1')
     log_format = '[%(asctime)s] [%(levelname)-8s] [%(name)-36s] [%(filename)-20s:%(lineno)-4s] %(message)s'
 
     def __init__(self,
-                 product: str=None,
-                 profile: str=None,
+                 product: Optional[str] = None,
+                 profile: Optional[str] = None,
                  creds_file: Optional[str] = None,
                  url: Optional[str] = None,
                  token: Optional[str] = None,
-                 cbr_sensor_group: Optional[str]=None,
-                 cbc_device_group: Optional[str] = None,
-                 cbc_device_policy: Optional[str] = None,
+                 cbr_sensor_group: Union[Tuple[str], List[str], str, None] = None,
+                 cbc_device_group: Union[Tuple[str], List[str], str, None] = None,
+                 cbc_device_policy: Union[Tuple[str], List[str], str, None] = None,
                  cbc_org_key: Optional[str] = None,
-                 cortex_tenant_ids: Optional[List[int]] = None,
+                 cortex_tenant_ids: Union[Tuple[str], List[str], str, None] = None,
                  cortex_api_key_id: Optional[int] = None,
                  cortex_auth_type: Optional[str] = None,
                  dfe_tenantId: Optional[str] = None,
                  dfe_appId: Optional[str] = None,
                  dfe_appSecret: Optional[str] = None,
-                 s1_site_ids: Optional[List[str]] = None,
-                 s1_account_ids: Optional[List[str]] = None,
-                 s1_account_names: Optional[List[str]] = None,
-                 **kwargs) -> dict:
+                 s1_site_ids: Union[Tuple[str], List[str], str, None] = None,
+                 s1_account_ids: Union[Tuple[str], List[str], str, None] = None,
+                 s1_account_names: Union[Tuple[str], List[str], str, None] = None,
+                 **kwargs) -> None:
 
-        if self.product_args:
-            self.product_args = None
+        self.product_args = {}
 
         if not product:
             print(f"No product selected, in order to use surveyor please specify a product such as: {self.supported_products}")
@@ -70,7 +91,7 @@ class Surveyor():
         match product:
             case 'cbr':
                 if cbr_sensor_group:
-                    args['sensor_group'] = list(cbr_sensor_group)
+                    args['sensor_group'] = cbr_sensor_group if isinstance(cbr_sensor_group, list) else [cbr_sensor_group] # type:ignore
                 if token:
                     args['token'] = token
                 if url:
@@ -79,9 +100,9 @@ class Surveyor():
                 # If no credentials can be found or are not passed in as arguments, an exception will be raised
             case'cbc':
                 if cbc_device_group:
-                    args['device_group'] = list(cbc_device_group)
+                    args['device_group'] = cbc_device_group if (isinstance(cbc_device_group, list) or isinstance(cbc_device_group, tuple)) else [cbc_device_group] # type:ignore
                 if cbc_device_policy:
-                    args['device_policy'] = list(cbc_device_policy)
+                    args['device_policy'] = cbc_device_policy if (isinstance(cbc_device_policy, list) or isinstance(cbc_device_policy, tuple)) else [cbc_device_policy] # type:ignore
                 if token:
                     args['token'] = token
                 if url:
@@ -103,7 +124,7 @@ class Surveyor():
                     raise Exception("DFE requires either a creds_file, or token, or tenantId, appId, and appSecret to be specified")
             case 'cortex':
                 if cortex_tenant_ids:
-                    args['tenant_ids'] = list(cortex_tenant_ids)
+                    args['tenant_ids'] = cortex_tenant_ids if (isinstance(cortex_tenant_ids, list) or isinstance(cortex_tenant_ids, tuple)) else [cortex_tenant_ids] # type:ignore
                 if token:
                     args['api_key'] = token
                 if cortex_api_key_id:
@@ -119,11 +140,11 @@ class Surveyor():
                     raise Exception("Cortex requires either a creds_file or token (api_key), api_key_id, and url to be specified")
             case 's1':
                 if s1_site_ids:
-                    args['site_ids'] = s1_site_ids
+                    args['site_ids'] = s1_site_ids if (isinstance(s1_site_ids, list) or isinstance(s1_site_ids, tuple)) else [s1_site_ids] # type:ignore
                 if s1_account_ids:
-                    args['account_ids'] = s1_account_ids
+                    args['account_ids'] = s1_account_ids if (isinstance(s1_account_ids, list) or isinstance(s1_account_ids, tuple)) else [s1_account_ids] # type:ignore
                 if s1_account_names:
-                    args['account_names'] = s1_account_names
+                    args['account_names'] = s1_account_names if (isinstance(s1_account_names, list) or isinstance(s1_account_names, tuple)) else [s1_account_names] # type:ignore
                 if token:
                     args['token'] = token
                 if url:
@@ -142,10 +163,10 @@ class Surveyor():
                minutes: Optional[int] = None,
                username: Optional[str] = None,
                limit: Optional[int] = None,
-               ioc_list: Union[list, str] = None,
+               ioc_list: Union[list, str, None] = None,
                ioc_type: Optional[str] = None,
                query: Optional[str] = None,
-               definition: Union[dict, str] = None,
+               definition: Union[dict, str, None] = None,
                def_dir: Optional[str] = None,
                output: Optional[str] = None,
                hunt_query_file: Optional[str] = None,
@@ -153,11 +174,11 @@ class Surveyor():
                sigma_dir: Optional[str] = None,
                s1_use_powerquery: bool = True,
                label: Optional[str] = None,
-               log_dir: Optional[str] = "logs",
+               log_dir: str = "logs",
                save_to_json_file: bool = False,
                save_to_csv_file: bool = False,
                standardized: bool = True, 
-               save_dir: Optional[str] = "results",
+               save_dir: str = "results",
                use_tqdm: bool = False,
                **kwargs) -> list:
         
@@ -194,9 +215,9 @@ class Surveyor():
         '''
         
         if save_to_csv_file or save_to_json_file:
-            os.makedirs(save_dir, exist_ok=True) 
+            os.makedirs(name = save_dir, exist_ok=True) 
 
-        collected_results = list()
+        collected_results: list = list()
         
         if str(self.product_args.get('product')) not in self.supported_products:
             raise Exception(f"product argument is required. Be sure to init the Surveyor class with a supported product {self.supported_products}")
@@ -233,8 +254,8 @@ class Surveyor():
         writer = None
         if save_to_csv_file:
             output_file = os.path.join(save_dir, "_".join([current_time, f'{str(self.product_args.get("profile"))}.csv' if not output else output]))
-            output_file = open(output_file, 'w', newline='', encoding='utf-8')
-            writer = csv.writer(output_file)
+            output_file = open(output_file, 'w', newline='', encoding='utf-8') # type:ignore
+            writer = csv.writer(output_file) # type:ignore
             writer.writerow(list(Result.__annotations__.keys()))
 
         if len(self.product_args) > 0 and isinstance(self.product_args, dict):
@@ -338,7 +359,7 @@ class Surveyor():
                     elif not isinstance(definition, dict):
                         raise TypeError(f"Definition file in unsupported format {type(definition)}, expected format --> dict")
                     
-                    for program, criteria in definition.items():
+                    for program, criteria in definition.items(): # type:ignore
                         product.nested_process_search(Tag(program, source_file), criteria, base_query)
 
                         if product.has_results():
@@ -358,7 +379,7 @@ class Surveyor():
                 for sigma_rule in sigma_rules:
                     source_file = os.path.basename(sigma_rule) if isinstance(sigma_rule, str) and os.path.isfile(sigma_rule) else None
                     pq_check = True if s1_use_powerquery else False
-                    translated_rules = sigma_translation(product.product, [sigma_rule], pq_check)
+                    translated_rules = sigma_translation(product.product, [sigma_rule], pq_check)  # type:ignore
                     if len(translated_rules['queries']) != len(sigma_rules):
                         self.log.warning(f"Only {len(translated_rules['queries'])} out of {len(sigma_rules)} were able to be translated.")
                     
@@ -407,7 +428,7 @@ class Surveyor():
 
                     label = data.get("title") if not label else label
                     for query in queries:
-                        product.process_search(Tag(label, hunt_query_file), base_query, query)
+                        product.process_search(Tag(label, hunt_query_file), base_query, query) # type:ignore
 
                         for tag, results in product.get_results().items():
                             collected_results.extend(self._save_results(results, tag, writer, use_tqdm))
@@ -426,20 +447,19 @@ class Surveyor():
                     logging.info(f"Saved results to {output_file}")
                 
                 if writer:
-                    output_file.close()
-                    logging.info(f"Saved results to {output_file.name}")
+                    output_file.close() # type:ignore
+                    logging.info(f"Saved results to {output_file.name}") # type:ignore
                     if use_tqdm:
-                        tqdm.write(f"\033[95mResults saved: {output_file.name}\033[0m")
-                    
-            return collected_results
+                        tqdm.write(f"\033[95mResults saved: {output_file.name}\033[0m") # type:ignore
         
         except KeyboardInterrupt:
             self.log.error("Caught CTRL-C. Exiting...")
         except Exception as e:
             self.log.error(f'Caught {type(e).__name__} (see log for details): {e}')
 
+        return collected_results
 
-    def _save_results(self, results: list[Result], tag: Tag, writer:csv.writer, use_tqdm: bool=False) -> Union[None, list]:
+    def _save_results(self, results: list[Result], tag: Tag, writer: Union[csv.writer, None], use_tqdm: bool=False) -> list: # type:ignore
         """
         Helper function for writing search results to list and/or CSV.
         """
@@ -456,12 +476,12 @@ class Surveyor():
             self.log.info(f"-->{tag.tag}: {len(results)} results")
 
         for idx, result in enumerate(results):
-            result = result.__dict__
-            raw_data = result.get("raw_data")
-            if isinstance(raw_data, str) and raw_data:
+            result = result.__dict__ # type:ignore
+            raw_data = result.get("raw_data") # type:ignore
+            if isinstance(raw_data, str):
                 try:
                     raw_data = {k:v for k,v in json.loads(raw_data).items()}
-                    result["raw_data"] = raw_data if not writer else str(raw_data)
+                    result["raw_data"] = raw_data if not writer else str(raw_data) # type:ignore
                 except Exception as e:
                     self.log.error("Error converting all values of raw_data into string")
                 
@@ -469,10 +489,10 @@ class Surveyor():
             if writer: 
                 writer.writerow(list(result.values()))
         
-        return results
+        return results if isinstance(results, list) else []
 
 
-def local_lambda(event:dict = None, product_args: dict = None, survey: dict = None) -> Union[requests.Response, None]:
+def local_lambda(event: dict = {}, product_args: dict = {}, survey: dict = {}) -> Union[requests.Response, None]:
 
     if not event and not all([product_args,survey]):
         raise ValueError("To run Surveyor an event dictionary containing an\
@@ -494,30 +514,12 @@ def local_lambda(event:dict = None, product_args: dict = None, survey: dict = No
             print(f"Ensure the SURVEYOR_URL environment variable is set to {url}. Error: {e}")
         else:
             print(f"Ensure the docker container is running at {url}. Error: {e}")
+    
+    return None
 
-@dataclasses.dataclass
-class CLIExecutionOptions:
-    profile: str
-    hostname: Optional[str]
-    days: Optional[int]
-    minutes: Optional[int]
-    username: Optional[str]
-    limit: Optional[int]
-    ioc_list: Optional[str]
-    ioc_type: Optional[str]
-    query: Optional[str]
-    output: Optional[str]
-    def_dir: Optional[str]
-    definition: Optional[str]
-    sigma_rule: Optional[str]
-    sigma_dir: Optional[str]
-    log_dir: str
-    s1_use_powerquery: bool
-    save_to_csv_file: bool
-    save_to_json_file:bool
-    use_tqdm: bool
 
 if __name__ == "__main__":
+    import click
     # noinspection SpellCheckingInspection
     @click.group("surveyor", context_settings=dict(help_option_names=["-h", "--help", "-what-am-i-doing"]), invoke_without_command=True, chain=False)
     # filtering options
@@ -612,17 +614,17 @@ if __name__ == "__main__":
 
     # S1 options
     @cli.command('s1', help="Query SentinelOne")
-    @click.option("--site-id", help="ID of SentinelOne site to query", multiple=True, default=None)
-    @click.option("--account-id", help="ID of SentinelOne account to query", multiple=True, default=None)
-    @click.option("--account-name", help="Name of SentinelOne account to query", multiple=True, default=None)
+    @click.option("--site-id", help="ID of SentinelOne site to query", multiple=True, default=list())
+    @click.option("--account-id", help="ID of SentinelOne account to query", multiple=True, default=list())
+    @click.option("--account-name", help="Name of SentinelOne account to query", multiple=True, default=list())
     @click.option("--creds", 'creds', help="Path to credential file", type=click.Path(exists=True), required=True)
     @click.option("--dv", 'dv', help="Use Deep Visibility for queries", is_flag=True, required=False)
     @click.pass_context
     def s1(ctx, site_id: Optional[Tuple], account_id: Optional[Tuple], account_name: Optional[Tuple], creds: Optional[str],
         dv: bool) -> None:
-        site_id = list(site_id) if site_id else None
-        account_id = list(account_id) if account_id else None
-        account_name = list(account_name) if account_name else None
+        site_id = site_id
+        account_id = account_id
+        account_name = account_name
         ctx.obj["s1_use_powerquery"] = not dv
         
         Surveyor("s1", 
@@ -642,8 +644,8 @@ if __name__ == "__main__":
     def cbc(ctx, device_group: Optional[Tuple], device_policy: Optional[Tuple]) -> None:
 
         Surveyor('cbc',
-                 cbc_device_group=list(device_group) if device_group else None,
-                 cbc_device_policy=list(device_policy) if device_policy else None,
+                 cbc_device_group=device_group,
+                 cbc_device_policy=device_policy,
                  profile = ctx.obj.profile
                  ).survey(**filtered_ctx_object(ctx.obj))
 
