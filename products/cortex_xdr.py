@@ -76,49 +76,8 @@ class CortexXDR(Product):
         super().__init__(self.product, **kwargs)
 
     def _authenticate(self) -> None:
-        if not (self._url and self._api_key and self._api_key_id and self._auth_type):
-            
-            if not os.path.isfile(self.creds_file):
-                raise ValueError(f'Credential file {self.creds_file} does not exist')
-            
-            elif os.path.isfile(self.creds_file):
-                config = configparser.ConfigParser()
-                config.read(self.creds_file)
-
-                if self.profile not in config or not self.profile:
-                    raise ValueError(f'Profile {self.profile} is not present in credential file or a profile argument was not passed. Please retry')
-
-                section = config[self.profile]
-
-                # ensure configuration has required fields
-                if 'url' not in section:
-                    raise ValueError(f'Cortex XDR configuration invalid, ensure "url" is specified')
-
-                # extract required information from configuration
-                if 'api_key' in section:
-                    self._api_key = section['api_key']
-                else:
-                    raise ValueError(f'Cortex XDR configuration invalid, ensure "api_key" is specified')
-
-                if 'api_key_id' in section:
-                    self._api_key_id = section['api_key_id']
-                else:
-                    raise ValueError(f'Cortex XDR configuration invalid, ensure "api_key_id" is specified')
-
-                if 'auth_type' in section:
-                    if section['auth_type'].lower() in ['standard', 'advanced']:
-                        self._auth_type = section['auth_type'].lower()
-                    else:
-                        raise ValueError(
-                            f'Cortex XDR configuration invalid, ensure "auth_type" is one of ["standard","advanced"]')
-
-                if 'tenant_id' in section:
-                    self._tenant_ids = section['tenant_id'].split(',')
-
-                self._url = section['url'].rstrip('/')
-
-        if not self._url.startswith('https://'):
-            raise ValueError(f'URL must start with "https://"')
+        
+        self.verify_creds
 
         # create a session and a pooled HTTPAdapter
         self._session = requests.session()
@@ -238,6 +197,8 @@ class CortexXDR(Product):
                     self._queries[tag].append(Query(relative_time_ms, parameter, operator, search_value))
         except KeyboardInterrupt:
             self.log.exception("Caught CTRL-C. Returning what we have...")
+        except Exception as e:
+            self.log.error(e)
 
     def _get_xql_results(self, query_id: str) -> Tuple[dict, int]:
         params = {
@@ -352,3 +313,49 @@ class CortexXDR(Product):
         except Exception:
             # Return current time
             return datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.%fZ')
+    
+    @property
+    def verify_creds(self) -> None:
+        if not (self._url and self._api_key and self._api_key_id and self._auth_type):
+            
+            if not os.path.isfile(self.creds_file):
+                raise ValueError(f'Credential file {self.creds_file} does not exist')
+            
+            elif os.path.isfile(self.creds_file):
+                config = configparser.ConfigParser()
+                config.read(self.creds_file)
+
+                if self.profile not in config or not self.profile:
+                    raise ValueError(f'Profile {self.profile} is not present in credential file or a profile argument was not passed. Please retry')
+
+                section = config[self.profile]
+
+                # ensure configuration has required fields
+                if 'url' not in section:
+                    raise ValueError(f'Cortex XDR configuration invalid, ensure "url" is specified')
+
+                # extract required information from configuration
+                if 'api_key' in section:
+                    self._api_key = section['api_key']
+                else:
+                    raise ValueError(f'Cortex XDR configuration invalid, ensure "api_key" is specified')
+
+                if 'api_key_id' in section:
+                    self._api_key_id = section['api_key_id']
+                else:
+                    raise ValueError(f'Cortex XDR configuration invalid, ensure "api_key_id" is specified')
+
+                if 'auth_type' in section:
+                    if section['auth_type'].lower() in ['standard', 'advanced']:
+                        self._auth_type = section['auth_type'].lower()
+                    else:
+                        raise ValueError(
+                            f'Cortex XDR configuration invalid, ensure "auth_type" is one of ["standard","advanced"]')
+
+                if 'tenant_id' in section:
+                    self._tenant_ids = section['tenant_id'].split(',')
+
+                self._url = section['url'].rstrip('/')
+        
+        if not self._url.startswith('https://'):
+            raise ValueError(f'URL must start with "https://"')

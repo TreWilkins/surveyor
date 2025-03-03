@@ -115,38 +115,8 @@ class SentinelOne(Product):
         super().__init__(self.product, **kwargs)
 
     def _authenticate(self):
-        if self._url and self._token:
-            self._url = self._url.rstrip('/')
-
-        elif os.path.isfile(self.creds_file):
-            config = configparser.ConfigParser()
-            config.read(self.creds_file)
-
-            if self.profile and self.profile not in config:
-                raise ValueError(f'Profile {self.profile} is not present in credential file or no profile has been provided. Please validate profile or ensure profile is provided.')
-
-            section = config[self.profile]
-
-            # ensure configuration has required fields
-            if 'url' not in section:
-                raise ValueError(f'S1 configuration invalid, ensure "url" is specified')
-
-            # extract required information from configuration
-            if 'token' in section:
-                self._token = section['token']
-            else:
-                if 'S1_TOKEN' not in os.environ:
-                    raise ValueError(f'S1 configuration invalid, specify "token" configuration value or "S1_TOKEN" '
-                                    f'environment variable')
-                self._token = os.environ['S1_TOKEN']
-
-            self._url = section['url'].rstrip('/')
-
-        elif not os.path.isfile(self.creds_file):
-            raise ValueError(f'Credential file {self.creds_file} does not exist')
-
-        if not self._url.startswith('https://'):
-            raise ValueError(f'URL must start with "https://"')
+        
+        self.verify_creds
 
         # create a session and a pooled HTTPAdapter
         self._session = requests.session()
@@ -329,23 +299,13 @@ class SentinelOne(Product):
             elif key == 'minutes':
                 from_date = to_date - timedelta(minutes=value)
             elif key == 'hostname':
-                if self._pq:
-                    if query_base: 
-                        query_base += ' and '
-                    query_base += f'endpoint.name contains "{value}"'
-                else:
-                    if query_base:
-                        query_base += ' AND '
-                    query_base += f'EndpointName containscis "{value}"'
+                if query_base: 
+                    query_base += ' and ' if self._pq else ' AND '
+                query_base += f'endpoint.name contains "{value}"' if self._pq else f'EndpointName containscis "{value}"'
             elif key == 'username':
-                if self._pq:
-                    if query_base:
-                        query_base += ' and '
-                    query_base += f'src.process.user contains "{value}"'
-                else:
-                    if query_base:
-                        query_base += ' AND '
-                    query_base += f'UserName containscis "{value}"'
+                if query_base:
+                    query_base += ' and ' if self._pq else ' AND '
+                query_base += f'src.process.user contains "{value}"' if self._pq else f'UserName containscis "{value}"'
             else:
                 self.log.warning(f'Query filter {key} is not supported by product {self.product}')
 
@@ -445,10 +405,7 @@ class SentinelOne(Product):
                         raise ValueError(f'S1 query failed with message "{error}"')
 
                     if self._pq:
-                        # PQ returns results in ping response when query is complete
-                        event_header = [item['name'] for item in response_data['data']['columns']]
-                        events = [dict(zip(event_header, event)) for event in response_data['data']['data'] if event]
-                        return events
+                        return self._pq_events(response_data)
                     else:
                         # DV requires fetching results when query is complete
                         return self._get_all_paginated_data(
@@ -499,10 +456,7 @@ class SentinelOne(Product):
                 if self._pq:
                     for param in parameter:
                         if param == 'query':
-                            if len(terms) > 1:
-                                search_value = '(' + ') or ('.join(terms) + ')'
-                            else:
-                                search_value = terms[0]
+                            search_value = '(' + ') or ('.join(terms) + ')' if len(terms) > 1 else terms[0]
                             self._queries[tag].append(Query(from_date, to_date, None, None, None, search_value))
                         elif (sum(len(i) for i in terms)+300) / 8192 >= 0.75: # chunk terms if query is suspected to contain more than 8192 total characters (current PQ limitation)
                             char_num = int((sum(len(i) for i in terms)) / 6144) + 1 # divide total characters of terms by 75% of limit to identify chunk number
@@ -524,10 +478,7 @@ class SentinelOne(Product):
                             search_value = search_value_orig
                             if param == 'query':
                                 # Formats queries as (a) OR (b) OR (c) OR (d)
-                                if len(chunk) > 1:
-                                    search_value = '(' + ') OR ('.join(chunk) + ')'
-                                else:
-                                    search_value = terms[0]
+                                search_value = '(' + ') OR ('.join(chunk) + ')' if len(chunk) > 1 else terms[0]
                                 operator = 'raw'
                             elif len(terms) > 1:
                                 search_value = f'({search_value})'
@@ -546,28 +497,16 @@ class SentinelOne(Product):
         # these chunks will be combined with OR statements and executed
         query_text = list[Tuple[Tag, str]]()
 
-        if self._pq:
-            query_text = list[Tuple[Tag, str]]()
-
-            for tag, queries in self._queries.items():
-                for query in queries:
-                    if query.full_query is not None:
-                        query_text.append((tag, query.full_query))
-                    else:
-                        full_query = f'{query.parameter} {query.operator} {query.search_value}'
-                        query_text.append((tag, full_query))
-        else:
-
-            for tag, queries in self._queries.items():
-                for query in queries:
-                    if query.full_query is not None:
-                        query_text.append((tag, query.full_query))
-                    elif query.operator == 'raw':
+        for tag, queries in self._queries.items():
+            for query in queries:
+                if query.full_query is not None:
+                    query_text.append((tag, query.full_query))
+                else:
+                    if query.operator == 'raw' and not self._pq:
                         full_query = f'({query.search_value})'
-                        query_text.append((tag, full_query))
                     else:
                         full_query = f'{query.parameter} {query.operator} {query.search_value}'
-                        query_text.append((tag, full_query))
+                    query_text.append((tag, full_query))
 
         return query_text
 
@@ -623,8 +562,7 @@ class SentinelOne(Product):
             self.log.info(f'Query ID is {query_id}')
 
             if self._pq and body['data']['status'] == 'FINISHED': # If using PQ, the results can be returned immediately
-                event_header = [item['name'] for item in body['data']['columns']]
-                events = [dict(zip(event_header, event)) for event in body['data']['data'] if event]
+                events = self._pq_events(body)
             else:
                 events = self._get_dv_events(query_id, cancel_event=cancel_event)
                 
@@ -788,3 +726,42 @@ class SentinelOne(Product):
         Convert a datetime object to an epoch timestamp in milliseconds.
         """
         return int((date - datetime(1970, 1, 1, tzinfo=timezone.utc)).total_seconds() * 1000)
+    
+    def _pq_events(body: dict):
+        event_header = [item['name'] for item in body['data']['columns']]
+        return [dict(zip(event_header, event)) for event in body['data']['data'] if event]
+        
+    @property
+    def verify_creds(self) -> None:
+        if self._url and self._token:
+            self._url = self._url.rstrip('/')
+
+        elif os.path.isfile(self.creds_file):
+            config = configparser.ConfigParser()
+            config.read(self.creds_file)
+
+            if self.profile and self.profile not in config:
+                raise ValueError(f'Profile {self.profile} is not present in credential file or no profile has been provided. Please validate profile or ensure profile is provided.')
+
+            section = config[self.profile]
+
+            # ensure configuration has required fields
+            if 'url' not in section:
+                raise ValueError(f'S1 configuration invalid, ensure "url" is specified')
+
+            # extract required information from configuration
+            if 'token' in section:
+                self._token = section['token']
+            else:
+                if 'S1_TOKEN' not in os.environ:
+                    raise ValueError(f'S1 configuration invalid, specify "token" configuration value or "S1_TOKEN" '
+                                    f'environment variable')
+                self._token = os.environ['S1_TOKEN']
+
+            self._url = section['url'].rstrip('/')
+
+        elif not os.path.isfile(self.creds_file):
+            raise ValueError(f'Credential file {self.creds_file} does not exist')
+
+        if not self._url.startswith('https://'):
+            raise ValueError(f'URL must start with "https://"')

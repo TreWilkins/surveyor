@@ -125,7 +125,7 @@ class Surveyor():
                     raise Exception("DFE requires either a creds_file, or token, or tenantId, appId, and appSecret to be specified")
             case 'cortex':
                 if cortex_tenant_ids:
-                    args['tenant_ids'] = cortex_tenant_ids if (isinstance(cortex_tenant_ids, (list, tuple)) else [cortex_tenant_ids] # type:ignore
+                    args['tenant_ids'] = cortex_tenant_ids if (isinstance(cortex_tenant_ids, (list, tuple))) else [cortex_tenant_ids] # type:ignore
                 if token:
                     args['api_key'] = token
                 if cortex_api_key_id:
@@ -265,8 +265,11 @@ class Surveyor():
             kwargs = self.product_args
         
         if hunt_query_file:
-            # If running a hunt query, do not append anything additional to a query that may cause errors.
+            self.log.info("A hunt query file is being used, defaulting to an unstandardized run, so that nothing is appended to a query, which may cause errors.")
             standardized = False
+        elif any([definition, def_dir, ioc_list, sigma_dir, sigma_rule]):
+                self.log.info("Either a definition, sigma, or IoC search has been requested. Defaulting to a standardized run.")
+                standardized = True
 
         if isinstance(limit, (str, int)):
             kwargs['limit'] = str(limit)

@@ -67,31 +67,11 @@ class DefenderForEndpoints(Product):
         super().__init__(self.product, **kwargs)
 
     def _authenticate(self) -> None:
+        
+        self.verify_creds()
+        
         if not self._token:
-            
-            if self._tenantId and self._appId and self._appSecret:
-                self._token = self._get_aad_token(self._tenantId, self._appId, self._appSecret)
-            
-            elif not os.path.isfile(self.creds_file):
-                raise ValueError(f'Credential file {self.creds_file} does not exist')
-            
-            elif os.path.isfile(self.creds_file):
-
-                config = configparser.ConfigParser()
-                config.sections()
-                config.read(self.creds_file)
-
-                if self.profile not in config:
-                    raise ValueError(f'Profile {self.profile} is not present in credential file')
-
-                section = config[self.profile]
-
-                if 'token' in section:
-                    self._token = section['token']
-                elif 'tenantId' not in section or 'appId' not in section or 'appSecret' not in section:
-                    raise ValueError(f'Credential file must contain a token or the fields tenantId, appId, and appSecret values')
-                else:
-                    self._token = self._get_aad_token(section['tenantId'], section['appId'], section['appSecret'])
+            self._token = self._get_aad_token(self._tenantId, self._appId, self._appSecret)
 
     def _get_aad_token(self, tenant_id: str, app_id: str, app_secret: str) -> str:
         """
@@ -219,3 +199,28 @@ class DefenderForEndpoints(Product):
                     self.log.warning(f'Query filter {key} is not supported by product {self.product}')
 
         return ' '.join(query_base)
+    
+    @property
+    def verify_creds(self) -> None:
+        if self._tenantId and self._appId and self._appSecret:
+            self.log.info("Received tenantId, appId, and appSecret values needed to authenticate.")
+        elif not os.path.isfile(self.creds_file):
+            raise ValueError(f'Credential file {self.creds_file} does not exist')
+        elif os.path.isfile(self.creds_file):
+            config = configparser.ConfigParser()
+            config.sections()
+            config.read(self.creds_file)
+
+            if self.profile not in config:
+                raise ValueError(f'Profile {self.profile} is not present in credential file')
+
+            section = config[self.profile]
+
+            if 'token' in section:
+                self._token = section['token']
+            elif 'tenantId' not in section or 'appId' not in section or 'appSecret' not in section:
+                raise ValueError(f'Credential file must contain a token or the fields tenantId, appId, and appSecret values')
+            else:
+                self._tenantId = section['tenantId']
+                self._appId = section['appId']
+                self._appSecret = section['appSecret']
