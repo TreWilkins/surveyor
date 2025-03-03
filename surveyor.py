@@ -409,7 +409,7 @@ class Surveyor():
                 queries = []
                 if not os.path.exists(hunt_query_file):
                     repo_huntfile: str = os.path.join(os.path.dirname(__file__), 'hunt_queries', hunt_query_file)
-                    if not repo_huntfile.endswith('.yaml'):
+                    if not (repo_huntfile.endswith('.yaml') or repo_huntfile.endswith('.yml')):
                         repo_huntfile = repo_huntfile + '.yaml'
 
                     if os.path.isfile(repo_huntfile):
@@ -548,7 +548,7 @@ if __name__ == "__main__":
     # different ways you can survey the EDR
     @click.option("--deffile", 'def_file', help="Definition file to process (must end in .json).", type=click.STRING)
     @click.option("--defdir", 'def_dir', help="Directory containing multiple definition files.", type=click.STRING)
-    @click.option("--huntfile", 'hunt_file', help="Hunt file to process (must end in .json).", type=click.STRING)
+    @click.option("--huntfile", 'hunt_file', help="Hunt file to process (must end in .yaml or .yml).", type=click.STRING)
     @click.option("--json", 'save_to_json_file', help="Use Deep Visibility for queries", is_flag=True, required=False)
     @click.option("--query", help="A single query to execute.")
     @click.option("--iocfile", 'ioc_file', help="IOC file to process. One IOC per line. REQUIRES --ioctype")
