@@ -204,6 +204,8 @@ class DefenderForEndpoints(Product):
     def verify_creds(self) -> None:
         if self._tenantId and self._appId and self._appSecret:
             self.log.info("Received tenantId, appId, and appSecret values needed to authenticate.")
+        elif self._token:
+            self.log.info("Received token value needed to authenticate.")
         elif not os.path.isfile(self.creds_file):
             raise ValueError(f'Credential file {self.creds_file} does not exist')
         elif os.path.isfile(self.creds_file):
