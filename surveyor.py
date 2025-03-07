@@ -37,6 +37,7 @@ class CLIExecutionOptions:
     def_dir: Optional[str]
     definition: Optional[str]
     hunt_file: Optional[str]
+    hunt_dir: Optional[str]
     sigma_rule: Optional[str]
     sigma_dir: Optional[str]
     log_dir: str
@@ -421,12 +422,12 @@ class Surveyor():
                                 self.log.error("The YAML file must contain the following keys: title, description, and platforms.")
                             for i in data["platforms"]:
                                 if i.get(self.product) and isinstance(i[self.product], list):
-                                    queries.union(set(i[self.product]))
+                                    queries.update(i[self.product])
                                 elif list(i.keys())[0].startswith(self.product) and self.product == "s1":
                                     queries.add(i)
 
                             if not queries:
-                                self.log.error(f"No queries found for {self.product}. Skipping.")
+                                self.log.error(f"No queries found for {self.product} in {hunt_file}. Skipping...")
 
                             label = data.get("title") if not label else label
                             for query in queries:
@@ -668,12 +669,10 @@ if __name__ == "__main__":
     @click.option("--sensor-group", help="Name of sensor group to query", multiple=True, default=None)
     @click.pass_context
     def cbr(ctx, sensor_group: Optional[Tuple]) -> None:
-        print(ctx.obj.profile)
         Surveyor(product="cbr", 
                  cbr_sensor_group=sensor_group, 
                  profile=ctx.obj.profile
                  ).survey(**filtered_ctx_object(ctx.obj))
-
 
     # DFE options
     @cli.command('dfe', help="Query Microsoft Defender for Endpoints")
