@@ -157,18 +157,18 @@ class Surveyor():
                query: Optional[str] = None,
                definition: Union[dict, str, None] = None,
                def_dir: Optional[str] = None,
-               output: Optional[str] = None,
                hunt_file: Optional[str] = None,
                hunt_dir: Optional[str] = None,
                sigma_rule: Optional[str] = None,
                sigma_dir: Optional[str] = None,
-               s1_use_powerquery: bool = True,
+               output: Optional[str] = None,
                label: Optional[str] = None,
                log_dir: str = "logs",
                save_to_json_file: bool = False,
                save_to_csv_file: bool = False,
                standardized: bool = True, 
                save_dir: str = "results",
+               s1_use_powerquery: bool = True,
                use_tqdm: bool = False,
                **kwargs) -> list:
         
@@ -191,7 +191,8 @@ class Surveyor():
             hunt_file: (str) - Provide path to hunt query file (YAML). Will auto-resolve files existing in the `hunt_queries` directory of the projects folder. 
             hunt_dir: (str) - Directory containing multiple hunt files.
             sigma_rule: (str[yaml], str) - str of sigma rule, or path to file.
-            sigmadir: (str) - Directory containing multiple sigma rule files.
+            sigma_dir: (str) - Directory containing multiple sigma rule files.
+            output: (str) - Specify the output file for the results.
             label: (str) - Used for definitions. sigma, and IoC searches. \
                 Use to label the output of data for easier searching. Default None
             log_dir: (str) - Where to store logs on disk.
@@ -553,8 +554,7 @@ if __name__ == "__main__":
     @click.option("--sigmarule", 'sigma_rule', help="Sigma rule file to process (must be in YAML format).", type=click.STRING)
     @click.option("--sigmadir", 'sigma_dir', help='Directory containing multiple sigma rule files.', type=click.STRING)
     # optional output
-    @click.option("--output", "--o", help="Specify the output file for the results. "
-                                        "The default is create survey.csv in the current directory.")
+    @click.option("--output", "--o", help="Specify the output file for the results. Default is the results folder of the current directory.")
     # version option
     @click.version_option(current_version)
     # logging options
