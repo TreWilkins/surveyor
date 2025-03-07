@@ -54,9 +54,10 @@ class CbEnterpriseEdr(Product):
         self.org_key = kwargs['org_key'] if 'org_key' in kwargs else None
         self._device_group = kwargs['device_group'] if 'device_group' in kwargs else None
         self._device_policy = kwargs['device_policy'] if 'device_group' in kwargs else None
-        self._limit = int(kwargs['limit']) if 'limit' in kwargs else self._limit
+        self._limit = int(kwargs.get('limit', self._limit))
 
         super().__init__(self.product, **kwargs)
+
         if isinstance(self.futures, list) and self.futures:
             self.log.warning(f"There appears to be {len(self.futures)} futures. There should be none on initialization. Investigate further to see if there is downstream corruption or impact.")
             self.futures.clear() # Clear out any previous futures
@@ -151,7 +152,7 @@ class CbEnterpriseEdr(Product):
                 except Exception as e:
                     self.log.exception(f'Error processing result: {e}')
                     
-                if self._limit > 0 and count >= (self._limit-1):
+                if self._limit > 0 and count >= (self._limit - 1):
                     break
                 count += 1
 

@@ -98,13 +98,10 @@ class SentinelOne(Product):
         self._url = kwargs['url'] if 'url' in kwargs else ''
         self._token = kwargs['token'] if 'token' in kwargs else None
         self.creds_file = kwargs['creds_file'] if 'creds_file' in kwargs else None
-        limit = (kwargs['limit']) if 'limit' in kwargs else 0
         self._pq = True if kwargs.get('pq')==True else False # Use Deep Visibility if PowerQuery is not requested.
         self._standardized = False if kwargs.get("standardized")==False else True
 
-        # If no conditions match, the default limit will be set to PowerQuery's default of 1000 or to Deep Visibility's Max of 20000.
-        if isinstance(limit,str):
-            limit = int(limit)
+        limit = int(kwargs.get('limit', 0))
         # If using Power Query, a default of 1000 results will be set when no user arguments are supplied or when the supplied arguments are invalid.
         if self._pq:
             self._limit = limit if (1000 >= limit > 0 and self._pq) else 1000
@@ -295,6 +292,7 @@ class SentinelOne(Product):
 
         for key, value in filters.items():
             if key == 'days':
+                if value > 14 and self._pq: value = 14
                 from_date = to_date - timedelta(days=value)
             elif key == 'minutes':
                 from_date = to_date - timedelta(minutes=value)

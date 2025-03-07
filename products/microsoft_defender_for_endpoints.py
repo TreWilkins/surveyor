@@ -45,7 +45,7 @@ class DefenderForEndpoints(Product):
     product: str = 'dfe'
     creds_file: str  # path to credential configuration file
     _token: str  # AAD access token
-    _limit: int = -1
+    _limit: int = 0
     _tenantId: Optional[str] = None
     _appId: Optional[str] = None
     _appSecret: Optional[str] = None
@@ -61,8 +61,7 @@ class DefenderForEndpoints(Product):
         self._appSecret = kwargs.get('appSecret', '')
         self._standardized = False if kwargs.get("standardized")==False else True
 
-        if 100000 >= int(kwargs.get('limit', -1)) > self._limit:
-            self._limit = int(kwargs['limit'])
+        self._limit = int(kwargs['limit']) if 100000 >= int(kwargs.get('limit', 0)) > 0 else 100000
 
         super().__init__(self.product, **kwargs)
 

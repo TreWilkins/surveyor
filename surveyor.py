@@ -6,6 +6,7 @@ if sys.version_info.major == 3 and sys.version_info.minor < 10:
 
 import os
 import csv
+from _csv import Writer
 import json
 import logging
 import requests
@@ -15,7 +16,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Optional, Union, List, Callable, Tuple
 
-from common import Tag, Result, sigma_translation
+from common import Tag, Result, Product, sigma_translation
 from load import get_product_instance, get_products
 
 # Application version
@@ -35,7 +36,7 @@ class CLIExecutionOptions:
     output: Optional[str]
     def_dir: Optional[str]
     definition: Optional[str]
-    hunt_query_file: Optional[str]
+    hunt_file: Optional[str]
     sigma_rule: Optional[str]
     sigma_dir: Optional[str]
     log_dir: str
@@ -46,13 +47,15 @@ class CLIExecutionOptions:
 
 
 class Surveyor():
-    product_args: dict = None # type:ignore
+    product: str
+    product_args: dict
     log: logging.Logger
     supported_products: tuple = ('cbr', 'cbc', 'dfe', 'cortex', 's1')
     log_format: str = '[%(asctime)s] [%(levelname)-8s] [%(name)-36s] [%(filename)-20s:%(lineno)-4s] %(message)s'
+    _writer: Writer
 
     def __init__(self,
-                 product: Optional[str] = None,
+                 product: str,
                  profile: Optional[str] = None,
                  creds_file: Optional[str] = None,
                  url: Optional[str] = None,
@@ -72,88 +75,74 @@ class Surveyor():
                  s1_account_names: Union[Tuple[str], List[str], str, None] = None,
                  **kwargs) -> None:
 
-        self.product_args = {}
+        self.product = product.lower()
+        self.product_args: dict = dict()
+        args: dict = dict(profile="default" if not profile else str(profile))
 
-        if not product:
-            print(f"No product selected, in order to use surveyor please specify a product such as: {self.supported_products}")
-        else:
-            product = product.lower()
-
-        args = dict(product=product, profile=profile)
+        if product not in self.supported_products:
+            raise Exception(f"Product argument is required. Be sure to init the Surveyor class with a supported product {self.supported_products}")
         
         # Check if creds file exists for Cortex, S1, and DFE
-        if product in ['cortex', 'dfe', 's1']:
-            if creds_file:
-                if os.path.exists(creds_file) and os.path.isfile(creds_file):
-                    args['creds_file'] = creds_file
-                else:
-                    raise Exception(f"The creds_file doesn't exist at {creds_file} or is not a file. Please try again.")
+        if creds_file and product in ('cortex', 'dfe', 's1'):
+            if os.path.exists(creds_file) and os.path.isfile(creds_file):
+                args['creds_file'] = creds_file
+            else:
+                raise Exception(f"The cred file provided doesn't exist at {creds_file} or is not a file. Please verify and try again.")
                 
         match product:
             case 'cbr':
-                if cbr_sensor_group:
-                    args['sensor_group'] = cbr_sensor_group if isinstance(cbr_sensor_group, (list, tuple)) else [cbr_sensor_group] # type:ignore
-                if token:
-                    args['token'] = token
-                if url:
-                    args['url'] = url
                 # Credentials file is not required for CbR, given that the SDK attempts to load from disk by default.\
                 # If no credentials can be found or are not passed in as arguments, an exception will be raised
+                args.update({
+                    "sensor_group": cbr_sensor_group if isinstance(cbr_sensor_group, (list, tuple)) else [cbr_sensor_group] if isinstance(cbr_sensor_group, str) else None,
+                    "token": token,
+                    "url": url
+                })
             case'cbc':
-                if cbc_device_group:
-                    args['device_group'] = cbc_device_group if isinstance(cbc_device_group, (list, tuple)) else [cbc_device_group] # type:ignore
-                if cbc_device_policy:
-                    args['device_policy'] = cbc_device_policy if isinstance(cbc_device_policy, (list, tuple)) else [cbc_device_policy] # type:ignore
-                if token:
-                    args['token'] = token
-                if url:
-                    args['url'] = url
-                if cbc_org_key:
-                    args['org_key'] = cbc_org_key
-                    # Credentials file is not required for CbC, given that the SDK attempts to load from disk by default.\
-                    #  If no credentials can be found or are not passed in as arguments, an exception will be raised
+                # Credentials file is not required for CbC, given that the SDK attempts to load from disk by default.\
+                # If no credentials can be found or are not passed in as arguments, an exception will be raised
+                args.update({
+                    "device_group": cbc_device_group if isinstance(cbc_device_group, (list, tuple)) else [cbc_device_group] if isinstance(cbc_device_group, str) else None,
+                    "device_policy": cbc_device_policy if isinstance(cbc_device_policy, (list, tuple)) else [cbc_device_policy] if isinstance(cbc_device_policy, str) else None,
+                    "org_key": cbc_org_key,
+                    "token": token,
+                    "url": url
+                })  
             case 'dfe':
-                if token:
-                    args['token'] = token
-                if dfe_tenantId:
-                    args['tenantId'] = dfe_tenantId
-                if dfe_appId:
-                    args['appId'] = dfe_appId
-                if dfe_appSecret:
-                    args['appSecret'] = dfe_appSecret
+                args.update({
+                    "appId": dfe_appId,
+                    "appSecret": dfe_appSecret,
+                    "tenantId": dfe_tenantId,
+                    "token": token
+                })
                 if not any([args.get('creds_file'), args.get('token'), (args.get('tenantId') and args.get('appId') and args.get('appSecret'))]):
-                    raise Exception("DFE requires either a creds_file, or token, or tenantId, appId, and appSecret to be specified")
+                    raise Exception("DFE requires either a credentials file, or token, or tenantId, appId, and appSecret to be specified.")
             case 'cortex':
-                if cortex_tenant_ids:
-                    args['tenant_ids'] = cortex_tenant_ids if (isinstance(cortex_tenant_ids, (list, tuple))) else [cortex_tenant_ids] # type:ignore
-                if token:
-                    args['api_key'] = token
-                if cortex_api_key_id:
-                    args['api_key_id'] = str(cortex_api_key_id)
-                if url:
-                    args['url'] = url
+                args.update({
+                    "api_key": token,
+                    "api_key_id": str(cortex_api_key_id),
+                    "url": url,
+                    "tenant_ids": cortex_tenant_ids if (isinstance(cortex_tenant_ids, (list, tuple))) else [str(cortex_tenant_ids)]
+                })
                 if cortex_auth_type and isinstance(cortex_auth_type, str):
                     if cortex_auth_type.lower() in ['standard', 'advanced']:
-                        args['auth_type'] = cortex_auth_type
+                        args['auth_type'] = cortex_auth_type.lower()
                     else:
-                        raise ValueError("Invalid auth_type specified for Cortex, please provide either 'standard' or 'advanced'")
+                        raise ValueError("Invalid authentication type specified for Cortex, please provide either 'standard' or 'advanced'.")
                 if not any([args.get('creds_file'), (args.get('api_key') and args.get('url') and args.get('api_key_id'))]):
-                    raise Exception("Cortex requires either a creds_file or token (api_key), api_key_id, and url to be specified")
+                    raise Exception("Cortex requires either a credentials file or token (api_key), api_key_id, and URL to be specified.")
             case 's1':
-                if s1_site_ids:
-                    args['site_ids'] = s1_site_ids if isinstance(s1_site_ids, (list, tuple)) else [s1_site_ids] # type:ignore
-                if s1_account_ids:
-                    args['account_ids'] = s1_account_ids if isinstance(s1_account_ids, (list, tuple)) else [s1_account_ids] # type:ignore
-                if s1_account_names:
-                    args['account_names'] = s1_account_names if isinstance(s1_account_names, (list, tuple)) else [s1_account_names] # type:ignore
-                if token:
-                    args['token'] = token
-                if url:
-                    args["url"] = url
+                args.update({
+                    "account_ids": s1_account_ids if isinstance(s1_account_ids, (list, tuple)) else [s1_account_ids] if isinstance(s1_account_ids, str) else None,
+                    "account_names": s1_account_names if isinstance(s1_account_names, (list, tuple)) else [s1_account_names] if isinstance(s1_account_names, str) else None,
+                    "site_ids": s1_site_ids if isinstance(s1_site_ids, (list, tuple)) else [s1_site_ids] if isinstance(s1_site_ids, str) else None,
+                    "token": token,
+                    "url": url
+                })
                 if not any([args.get('creds_file'), [args.get('token') and args.get("url")]]):
-                    raise Exception("S1 requires either a creds_file or token & URL to be specified")
+                    raise Exception("S1 requires either a credentials file or a token & URL to be specified.")
                 elif not args.get('creds_file') and not any([args.get('site_ids'), args.get('account_ids'), args.get('account_names')]):
-                    raise Exception("S1 requires either site_ids, account_ids, or account_names to be specified")
+                    raise Exception("S1 requires either Site IDs, Account IDs, or Account Names to be specified.")
       
         self.product_args = args
 
@@ -169,7 +158,8 @@ class Surveyor():
                definition: Union[dict, str, None] = None,
                def_dir: Optional[str] = None,
                output: Optional[str] = None,
-               hunt_query_file: Optional[str] = None,
+               hunt_file: Optional[str] = None,
+               hunt_dir: Optional[str] = None,
                sigma_rule: Optional[str] = None,
                sigma_dir: Optional[str] = None,
                s1_use_powerquery: bool = True,
@@ -191,14 +181,15 @@ class Surveyor():
             minutes: (int) - number of minutes look back. \
                 Mutally exclusive of days. Default products days default value
             username: (str) - username to search for. Default all.
-            limit: (str) -number of results to return. \
+            limit: (int) - number of results to return. \
                 Default to products default value.
             ioc_list: (list, str) - IoCs to search want to search for. Default None
             ioc_type: (str) - The type of IoCs provided (ipaddr, sha256, md5, domain).
             query: (str) - Query to search. If sourcing from file, provide path to file.
             definition: (dict, str) - JSON `definitions` to search for. If sourcing from file, provide path unless the file exists in the projects `definitions` directory.
-            defdir: (str) - Directory containing multiple definition files.
-            hunt_query_file: (str) - Provide path to hunt query file (YAML). Will auto-resolve files existing in the `hunt_queries` directory of the projects folder. 
+            def_dir: (str) - Directory containing multiple definition files.
+            hunt_file: (str) - Provide path to hunt query file (YAML). Will auto-resolve files existing in the `hunt_queries` directory of the projects folder. 
+            hunt_dir: (str) - Directory containing multiple hunt files.
             sigma_rule: (str[yaml], str) - str of sigma rule, or path to file.
             sigmadir: (str) - Directory containing multiple sigma rule files.
             label: (str) - Used for definitions. sigma, and IoC searches. \
@@ -213,18 +204,15 @@ class Surveyor():
         Returns:
             list of results
         '''
-        
+        # Verify product has not changed to an unsupported product post-init.
+        if self.product not in self.supported_products:
+            raise Exception(f"Product argument is required. Be sure to init the Surveyor class with a supported product {self.supported_products}")
+                
         if save_to_csv_file or save_to_json_file:
             os.makedirs(name = save_dir, exist_ok=True) 
 
         collected_results: list = list()
         
-        if str(self.product_args.get('product')) not in self.supported_products:
-            raise Exception(f"product argument is required. Be sure to init the Surveyor class with a supported product {self.supported_products}")
-        else:
-            product_str = self.product_args['product']
-            del self.product_args['product'] # remove product key from product_args after setting product
-
         if ioc_list and ioc_type is None:
             raise Exception("iocfile requires ioctype")
 
@@ -233,10 +221,10 @@ class Surveyor():
 
         # instantiate a logger
         self.log = logging.getLogger('surveyor')
-        logging.debug(f'Product: {product_str}')
+        logging.debug(f'Product: {self.product}')
 
         # configure logging
-        root = logging.getLogger()
+        root: logging.Logger = logging.getLogger()
         root.setLevel(logging.DEBUG)
         root.handlers = list()  # remove all default handlers
 
@@ -244,42 +232,39 @@ class Surveyor():
         os.makedirs(log_dir, exist_ok=True)
 
         # create logging file handler
-        current_time = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
-        log_file_name = "_".join([current_time, product_str, os.urandom(6).hex(), f'{self.product_args.get("profile")}.log'])
+        current_time: str = datetime.now(timezone.utc).strftime('%Y%m%d%H%M%S')
+        log_file_name: str = "_".join([current_time, self.product, os.urandom(6).hex(), f'{self.product_args.get("profile")}.log'])
         handler = logging.FileHandler(os.path.join(log_dir, log_file_name))
         handler.setLevel(logging.DEBUG)
         handler.setFormatter(logging.Formatter(self.log_format))
         root.addHandler(handler)
 
-        writer = None
         output_file = os.path.join(save_dir, "_".join([current_time, os.urandom(6).hex(), str(self.product_args.get("profile"))]))
 
         if save_to_csv_file:
-            csv_output: str = f'{output_file}.csv' if not output else output
-            csv_output = open(csv_output, 'w', newline='', encoding='utf-8') # type:ignore
-            writer = csv.writer(csv_output) # type:ignore
-            writer.writerow(list(Result.__annotations__.keys()))
-
-        if len(self.product_args) > 0 and isinstance(self.product_args, dict):
-            kwargs = self.product_args
+            csv_output = open(f'{output_file}.csv' if not output else output, 'w', newline='', encoding='utf-8')
+            self._writer = csv.writer(csv_output)
+            self._writer.writerow(list(Result.__annotations__.keys()))
         
-        if hunt_query_file:
-            self.log.info("A hunt query file is being used, defaulting to an unstandardized run, so that nothing is appended to a query, which may cause errors.")
+        if hunt_file or hunt_dir:
+            self.log.info("A hunt search is being requested. Defaulting to an unstandardized run, so that nothing is appended to provided queries, which could cause errors.")
             standardized = False
         elif any([definition, def_dir, ioc_list, sigma_dir, sigma_rule]):
                 self.log.info("Either a definition, sigma, or IoC search has been requested. Defaulting to a standardized run.")
                 standardized = True
 
-        if isinstance(limit, (str, int)):
-            kwargs['limit'] = str(limit)
+        # Pass any additional arguments to product for initialization
+        self.product_args.update(dict(
+            limit = limit if limit else None,
+            pq = s1_use_powerquery if isinstance(s1_use_powerquery, bool) else True,
+            standardized = standardized if isinstance(standardized, bool) else True
+        ))
 
-        kwargs["pq"] = s1_use_powerquery if isinstance(s1_use_powerquery, bool) else True
-        
-        kwargs["standardized"] = standardized if isinstance(standardized, bool) else True
-        
+        self.product_args = {k:v for k,v in self.product_args.items() if v}
+
         # instantiate a product class instance based on the product string
         try:
-            product = get_product_instance(product_str, **kwargs)
+            product: Product = get_product_instance(self.product, **self.product_args)
         except ValueError as e:
             self.log.exception(e)
             raise Exception(str(e))
@@ -289,29 +274,38 @@ class Surveyor():
         base_query: dict = product.base_query()
 
         # placeholder for sigma rules if sigmarule or sigmadir is selected
-        sigma_rules = list() if not sigma_rule else [sigma_rule]
-        definitions = list() if not definition else [definition]
+        sigma_rules: list = list() if not sigma_rule else [sigma_rule]
+        definitions: list = list() if not definition else [definition]
+        hunt_files: list = list() if not hunt_file else [hunt_file]
 
-        # if defdir add all files to list
+        # if hunt_dir add all files to hunt_files list
+        if hunt_dir:
+            if not os.path.exists(hunt_dir):
+                self.log.error(f"The provided hunt direcory does not exist: {hunt_dir}. Please try again.")
+            else:
+                for root_dir, _, files in os.walk(hunt_dir):
+                    for filename in files:
+                        if os.path.splitext(filename)[1] in ('.yaml', '.yml'):
+                            hunt_files.append(os.path.join(root_dir, filename))
+
+        # if def_dir add all files to definitions list
         if def_dir:
             if not os.path.exists(def_dir):
-                self.log.error("The defdir doesn't exist. Please try again.")
+                self.log.error(f"The provided definition directory does not exist: {def_dir}. Please try again.")
             else:
-                for root_dir, dirs, files in os.walk(def_dir):
+                for root_dir, _, files in os.walk(def_dir):
                     for filename in files:
                         if os.path.splitext(filename)[1] == '.json':
                             definitions.append(os.path.join(root_dir, filename))
 
         # if sigma_dir, add all files to sigma_rules list
         if sigma_dir:
-            for root_dir, dirs, files in os.walk(sigma_dir):
+            for root_dir, _, files in os.walk(sigma_dir):
                 for filename in files:
-                    if os.path.splitext(filename)[1] == '.yml':
+                    if os.path.splitext(filename)[1] in ('.yaml', '.yml'):
                         sigma_rules.append(os.path.join(root_dir, filename))
         
-        base_query.update(dict(
-            username=username, hostname=hostname, days=days, minutes=minutes)
-            )
+        base_query.update(dict(username=username, hostname=hostname, days=days, minutes=minutes))
         
         # Delete all empty items in base_query
         base_query = {k:v for k,v in base_query.items() if v}
@@ -324,7 +318,7 @@ class Surveyor():
                 product.process_search(Tag(label), base_query, query)
 
                 for tag, results in product.get_results().items():
-                    collected_results.extend(self._save_results(results, tag, writer, use_tqdm))
+                    collected_results.extend(self._save_results(results, tag, use_tqdm))
 
             # run search based on IoC list
             elif ioc_list:
@@ -338,7 +332,7 @@ class Surveyor():
                 product.nested_process_search(Tag(label, source_file), {ioc_type: ioc_list}, base_query)
 
                 for tag, results in product.get_results().items():
-                    collected_results.extend(self._save_results(results, tag, writer, use_tqdm))
+                    collected_results.extend(self._save_results(results, tag, use_tqdm))
                         
             # run search against definition
             elif definitions:
@@ -360,31 +354,31 @@ class Surveyor():
                         with open(definition) as f:
                             definition = f.read()
                         definition = json.loads(definition)
+                    
+                    if isinstance(definition, dict):
+                        for program, criteria in definition.items():
+                            product.nested_process_search(Tag(program, source_file), criteria, base_query)
 
+                            if product.has_results():
+                                # write results as they become available
+                                for tag, nested_results in product.get_results(final_call=False).items():
+                                    collected_results.extend(self._save_results(nested_results, tag, use_tqdm))
+                                    
+                                # ensure results are only written once
+                                product.clear_results()
+
+                        # write any remaining results
+                        for tag, nested_results in product.get_results().items():
+                            collected_results.extend(self._save_results(nested_results, tag, use_tqdm))
                     elif not isinstance(definition, dict):
                         raise TypeError(f"Definition file in unsupported format {type(definition)}, expected format --> dict")
-                    
-                    for program, criteria in definition.items(): # type:ignore
-                        product.nested_process_search(Tag(program, source_file), criteria, base_query)
-
-                        if product.has_results():
-                            # write results as they become available
-                            for tag, nested_results in product.get_results(final_call=False).items():
-                                collected_results.extend(self._save_results(nested_results, tag, writer, use_tqdm))
-                                
-                            # ensure results are only written once
-                            product.clear_results()
-
-                    # write any remaining results
-                    for tag, nested_results in product.get_results().items():
-                        collected_results.extend(self._save_results(nested_results, tag, writer, use_tqdm))
                     
             # if there's sigma rules to be processed
             elif sigma_rules:
                 for sigma_rule in sigma_rules:
                     source_file = os.path.basename(sigma_rule) if isinstance(sigma_rule, str) and os.path.isfile(sigma_rule) else None
                     pq_check = True if s1_use_powerquery else False
-                    translated_rules = sigma_translation(product.product, [sigma_rule], pq_check)  # type:ignore
+                    translated_rules = sigma_translation(self.product, [sigma_rule], pq_check)
                     if len(translated_rules['queries']) != len(sigma_rules):
                         self.log.warning(f"Only {len(translated_rules['queries'])} out of {len(sigma_rules)} were able to be translated.")
                     
@@ -396,58 +390,60 @@ class Surveyor():
                         if product.has_results():
                             # write results as they become available
                             for tag, nested_results in product.get_results(final_call=False).items():
-                                collected_results.extend(self._save_results(nested_results, tag, writer, use_tqdm))
+                                collected_results.extend(self._save_results(nested_results, tag, use_tqdm))
                             
                             # ensure results are only written once
                             product.clear_results()
 
                     # write any remaining results
                     for tag, nested_results in product.get_results().items():
-                        collected_results.extend(self._save_results(nested_results, tag, writer, use_tqdm))
+                        collected_results.extend(self._save_results(nested_results, tag, use_tqdm))
 
-            elif hunt_query_file:
-                queries = []
-                if not os.path.exists(hunt_query_file):
-                    repo_huntfile: str = os.path.join(os.path.dirname(__file__), 'hunt_queries', hunt_query_file)
-                    if not (repo_huntfile.endswith('.yaml') or repo_huntfile.endswith('.yml')):
-                        repo_huntfile = repo_huntfile + '.yaml'
+            elif hunt_files:
+                for hunt_file in hunt_files:
+                    if isinstance(hunt_file, str):
+                        queries: set[str] = set()
+                        if not os.path.exists(hunt_file):
+                            repo_huntfile: str = os.path.join(os.path.dirname(__file__), 'hunt_queries', hunt_file)
+                            if not (repo_huntfile.endswith('.yaml') or repo_huntfile.endswith('.yml')):
+                                repo_huntfile = repo_huntfile + '.yaml'
 
-                    if os.path.isfile(repo_huntfile):
-                        self.log.debug(f'Using repo hunt query file {repo_huntfile}')
-                        hunt_query_file = repo_huntfile
-                    else:
-                        self.log.error(f"The hunt query file {hunt_query_file} doesn't exist. Please try again.")
+                            if os.path.isfile(repo_huntfile):
+                                self.log.debug(f'Using repo hunt query file {repo_huntfile}')
+                                hunt_file = repo_huntfile
+                            else:
+                                self.log.error(f"The hunt query file {hunt_file} doesn't exist. Please try again.")
 
-                with open(hunt_query_file) as f:
-                    data = yaml.safe_load(f)
-                    if not set(["title", "description", "platforms"]).issubset(data.keys()):
-                        self.log.error("The YAML file must contain the following keys: title, description, and platforms.")
-                    for i in data["platforms"]:
-                        if i.get(product_str) and isinstance(i[product_str], list):
-                            queries.extend(i[product_str])
-                        elif list(i.keys())[0].startswith(product_str) and product_str == "s1":
-                            queries.append(i)
+                        with open(hunt_file) as f:
+                            data = yaml.safe_load(f)
+                            if not set(["title", "description", "platforms"]).issubset(data.keys()):
+                                self.log.error("The YAML file must contain the following keys: title, description, and platforms.")
+                            for i in data["platforms"]:
+                                if i.get(self.product) and isinstance(i[self.product], list):
+                                    queries.union(set(i[self.product]))
+                                elif list(i.keys())[0].startswith(self.product) and self.product == "s1":
+                                    queries.add(i)
 
-                    if not queries:
-                        self.log.error(f"No queries found for {product_str}. Skipping.")
+                            if not queries:
+                                self.log.error(f"No queries found for {self.product}. Skipping.")
 
-                    label = data.get("title") if not label else label
-                    for query in queries:
-                        product.process_search(Tag(label, hunt_query_file), base_query, query) # type:ignore
+                            label = data.get("title") if not label else label
+                            for query in queries:
+                                product.process_search(Tag(label, hunt_file), base_query, query)
 
-                        for tag, results in product.get_results().items():
-                            collected_results.extend(self._save_results(results, tag, writer, use_tqdm))
+                                for tag, results in product.get_results().items():
+                                    collected_results.extend(self._save_results(results, tag, use_tqdm))
             if use_tqdm:
                 tqdm.write(f"\n\033[95mLog: {log_file_name}\033[0m")
 
             if collected_results:
                 logging.info(f"Total results: {len(collected_results)}")
 
-                if writer:
+                if self._writer:
                     csv_output.close() # type:ignore
-                    logging.info(f"Saved results to {csv_output.name}") # type:ignore
+                    logging.info(f"Saved results to {csv_output.name}") 
                     if use_tqdm:
-                        tqdm.write(f"\033[95mResults saved: {csv_output.name}\033[0m") # type:ignore
+                        tqdm.write(f"\033[95mResults saved: {csv_output.name}\033[0m")
 
                 if save_to_json_file:
                     os.makedirs(save_dir, exist_ok=True)
@@ -465,7 +461,7 @@ class Surveyor():
 
         return collected_results
 
-    def _save_results(self, results: list[Result], tag: Tag, writer: Union[csv.writer, None], use_tqdm: bool = False) -> list: # type:ignore
+    def _save_results(self, results: list[Result], tag: Tag, use_tqdm: bool = False) -> list:
         """
         Helper function for writing search results to list and/or CSV.
         """
@@ -483,22 +479,23 @@ class Surveyor():
 
         for idx, result in enumerate(results):
             result = result.__dict__ # type:ignore
-            raw_data = result.get("raw_data") # type:ignore
-            if isinstance(raw_data, str):
-                try:
-                    raw_data = {k:v for k,v in json.loads(raw_data).items()}
-                    result["raw_data"] = raw_data if not writer else str(raw_data) # type:ignore
-                except Exception as e:
-                    self.log.error("Error converting all values of raw_data into string")
-                
-            results[idx] = result
-            if writer: 
-                writer.writerow(list(result.values()))
+            if isinstance(result, dict):
+                raw_data = result.get("raw_data")
+                if isinstance(raw_data, str):
+                    try:
+                        raw_data = {k:v for k,v in json.loads(raw_data).items()}
+                        result["raw_data"] = raw_data if not self._writer else str(raw_data)
+                    except Exception as e:
+                        self.log.error("Error converting all values of raw_data into string")
+                    
+                results[idx] = result
+                if self._writer: 
+                    self._writer.writerow(list(result.values()))
         
         return results if isinstance(results, list) else []
 
 
-def local_lambda(event: dict = {}, product_args: dict = {}, survey: dict = {}) -> Union[requests.Response, None]:
+def local_lambda(event: dict = dict(), product_args: dict = dict(), survey: dict = dict()) -> Union[requests.Response, None]:
 
     if not event and not all([product_args,survey]):
         raise ValueError("To run Surveyor an event dictionary containing an\
@@ -549,7 +546,7 @@ if __name__ == "__main__":
     @click.option("--deffile", 'def_file', help="Definition file to process (must end in .json).", type=click.STRING)
     @click.option("--defdir", 'def_dir', help="Directory containing multiple definition files.", type=click.STRING)
     @click.option("--huntfile", 'hunt_file', help="Hunt file to process (must end in .yaml or .yml).", type=click.STRING)
-    @click.option("--json", 'save_to_json_file', help="Use Deep Visibility for queries", is_flag=True, required=False)
+    @click.option("--json", 'save_to_json_file', help="Save to JSON file", is_flag=True, required=False)
     @click.option("--query", help="A single query to execute.")
     @click.option("--iocfile", 'ioc_file', help="IOC file to process. One IOC per line. REQUIRES --ioctype")
     @click.option("--ioctype", 'ioc_type', help="One of: ipaddr, domain, md5, sha256")
@@ -597,7 +594,7 @@ if __name__ == "__main__":
             output=output,
             def_dir=def_dir, 
             definition=def_file,
-            hunt_query_file=hunt_file,
+            hunt_file=hunt_file,
             sigma_rule=sigma_rule,
             sigma_dir=sigma_dir,
             log_dir=log_dir,
@@ -608,7 +605,7 @@ if __name__ == "__main__":
             )
 
         if ctx.invoked_subcommand is None:
-            Surveyor('cbr').survey(**filtered_ctx_object(ctx.obj))
+            Surveyor(product='cbr').survey(**filtered_ctx_object(ctx.obj))
 
     def filtered_ctx_object(object):
         return {k:v for k,v in object.__dict__.items() if k != "profile"}
@@ -619,7 +616,11 @@ if __name__ == "__main__":
     @click.pass_context
     def cortex(ctx, creds: Optional[str]) -> None:
 
-        Surveyor('cortex', creds_file=creds, profile=ctx.obj.profile).survey(**filtered_ctx_object(ctx.obj))
+        Surveyor(
+            product='cortex', 
+            creds_file=creds, 
+            profile=ctx.obj.profile
+            ).survey(**filtered_ctx_object(ctx.obj))
 
     # S1 options
     @cli.command('s1', help="Query SentinelOne")
@@ -636,12 +637,12 @@ if __name__ == "__main__":
         account_name = account_name
         ctx.obj["s1_use_powerquery"] = not dv
         
-        Surveyor("s1", 
+        Surveyor(product="s1", 
                  creds_file=creds, 
                  s1_account_ids=account_id, 
                  s1_account_names=account_name, 
                  s1_site_ids=site_id,
-                 profile = ctx.obj.profile
+                 profile=ctx.obj.profile
                  ).survey(**filtered_ctx_object(ctx.obj))
 
 
@@ -652,10 +653,10 @@ if __name__ == "__main__":
     @click.pass_context
     def cbc(ctx, device_group: Optional[Tuple], device_policy: Optional[Tuple]) -> None:
 
-        Surveyor('cbc',
+        Surveyor(product='cbc',
                  cbc_device_group=device_group,
                  cbc_device_policy=device_policy,
-                 profile = ctx.obj.profile
+                 profile=ctx.obj.profile
                  ).survey(**filtered_ctx_object(ctx.obj))
 
 
@@ -665,7 +666,10 @@ if __name__ == "__main__":
     @click.pass_context
     def cbr(ctx, sensor_group: Optional[Tuple]) -> None:
         print(ctx.obj.profile)
-        Surveyor(product="cbr", cbr_sensor_group=sensor_group, profile = ctx.obj.profile).survey(**filtered_ctx_object(ctx.obj))
+        Surveyor(product="cbr", 
+                 cbr_sensor_group=sensor_group, 
+                 profile=ctx.obj.profile
+                 ).survey(**filtered_ctx_object(ctx.obj))
 
 
     # DFE options
@@ -673,12 +677,15 @@ if __name__ == "__main__":
     @click.option("--creds", 'creds', help="Path to credential file", type=click.Path(exists=True), required=True)
     @click.pass_context
     def dfe(ctx, creds: Optional[str]) -> None:
-        Surveyor('dfe', creds_file=creds, profile = ctx.obj.profile).survey(**filtered_ctx_object(ctx.obj))
+        Surveyor(product='dfe', 
+                 creds_file=creds, 
+                 profile=ctx.obj.profile
+                 ).survey(**filtered_ctx_object(ctx.obj))
 
     def create_generic_product_command(name: str) -> Callable:
         @click.pass_context
         def command(ctx):
-            Surveyor(name)
+            Surveyor(product=name)
 
         command.__name__ = name
         return command

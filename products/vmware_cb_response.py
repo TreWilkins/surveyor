@@ -20,7 +20,7 @@ class CbResponse(Product):
         self.url = kwargs['url'] if 'url' in kwargs else None
         self.token = kwargs['token'] if 'token' in kwargs else None
         self._sensor_group = kwargs['sensor_group'] if 'sensor_group' in kwargs else None
-        self._limit = int(kwargs['limit']) if 'limit' in kwargs else self._limit
+        self._limit = int(kwargs.get('limit', self._limit))
 
         super().__init__(self.product, **kwargs)
 
@@ -69,8 +69,8 @@ class CbResponse(Product):
             for proc in self._conn.select(Process).where(query):
                 results.add(self._format_result(proc, tag, query))
 
-                if self._limit > 0 and len(results)+1 > self._limit:
-                        break
+                if self._limit > 0 and (len(results) + 1 > self._limit):
+                    break
                 
         except KeyboardInterrupt:
             self.log.info("Caught CTRL-C. Returning what we have . . .")

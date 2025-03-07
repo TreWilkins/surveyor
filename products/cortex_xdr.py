@@ -69,9 +69,7 @@ class CortexXDR(Product):
         self._url =  kwargs['url'] if 'url' in kwargs else ''
         self._auth_type = kwargs['auth_type'] if 'auth_type' in kwargs else "standard"
         self._standardized = False if kwargs.get("standardized")==False else True
-
-        if self._limit >= int(kwargs.get('limit',0)) > 0:
-            self._limit = int(kwargs['limit'])
+        self._limit = int(kwargs['limit']) if self._limit >= int(kwargs.get('limit', 0)) > 0 else self._limit
 
         super().__init__(self.product, **kwargs)
 

@@ -13,22 +13,22 @@ def test_init_lower_limit_option_1(tmpdir, mocker):
     cred_file_path = tmpdir.mkdir('test_dir').join('test_creds.ini')
     cred_file_path.write("asdfasdfasdf")
     dfe_product = DefenderForEndpoints(profile='default',creds_file=cred_file_path, limit=-2)
-    assert dfe_product._limit == -1
+    assert dfe_product._limit == 100000
 
 
 def test_init_upper_limit_option(tmpdir, mocker):
     mocker.patch.object(DefenderForEndpoints, '_authenticate')
     cred_file_path = tmpdir.mkdir('test_dir').join('test_creds.ini')
     cred_file_path.write("asdfasdfasdf")
-    dfe_product = DefenderForEndpoints(profile='default',creds_file=cred_file_path, limit=100001)
-    assert dfe_product._limit == -1
+    dfe_product = DefenderForEndpoints(profile='default', creds_file=cred_file_path, limit=100001)
+    assert dfe_product._limit == 100000
 
 
 def test_init_lower_limit_option_10(tmpdir, mocker):
     mocker.patch.object(DefenderForEndpoints, '_authenticate')
     cred_file_path = tmpdir.mkdir('test_dir').join('test_creds.ini')
     cred_file_path.write("asdfasdfasdf")
-    dfe_product = DefenderForEndpoints(profile='default',creds_file=cred_file_path, limit=10)
+    dfe_product = DefenderForEndpoints(profile='default', creds_file=cred_file_path, limit=10)
     assert dfe_product._limit == 10
 
 
