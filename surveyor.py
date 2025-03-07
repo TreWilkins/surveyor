@@ -544,9 +544,10 @@ if __name__ == "__main__":
     @click.option("--hostname", help="Target specific host by name.", type=click.STRING)
     @click.option("--username", help="Target specific username.")
     # different ways you can survey the EDR
-    @click.option("--deffile", 'def_file', help="Definition file to process (must end in .json).", type=click.STRING)
+    @click.option("--deffile", 'definition', help="Definition file to process (must end in .json).", type=click.STRING)
     @click.option("--defdir", 'def_dir', help="Directory containing multiple definition files.", type=click.STRING)
     @click.option("--huntfile", 'hunt_file', help="Hunt file to process (must end in .yaml or .yml).", type=click.STRING)
+    @click.option("--huntdir", 'hunt_dir', help="Directory containing multiple hunt files.", type=click.STRING)
     @click.option("--json", 'save_to_json_file', help="Save to JSON file", is_flag=True, required=False)
     @click.option("--query", help="A single query to execute.")
     @click.option("--iocfile", 'ioc_file', help="IOC file to process. One IOC per line. REQUIRES --ioctype")
@@ -572,7 +573,8 @@ if __name__ == "__main__":
             query: Optional[str],
             output: Optional[str],
             def_dir: Optional[str],
-            def_file: Optional[str],
+            definition: Optional[str],
+            hunt_dir: Optional[str],
             hunt_file: Optional[str],
             sigma_rule: Optional[str],
             sigma_dir: Optional[str],
@@ -593,7 +595,8 @@ if __name__ == "__main__":
             query=query,
             output=output,
             def_dir=def_dir, 
-            definition=def_file,
+            definition=definition,
+            hunt_dir = hunt_dir,
             hunt_file=hunt_file,
             sigma_rule=sigma_rule,
             sigma_dir=sigma_dir,
