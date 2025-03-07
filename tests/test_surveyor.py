@@ -212,3 +212,18 @@ fields:
     - ParentCommandLine"""
     Surveyor("cbr").survey(sigma_rule=sigmarule, days=5, hostname="workstation1", username="admin")
     mocked_nested_process_search.assert_called_once_with(Tag('Test sigma rule - 5fd18e43-749c-4bae-93b6-d46e1f27062e'), {"query":["process_name:curl.exe"]}, {'username':'admin', 'hostname':'workstation1','days':5 })
+
+
+def test_hunt_file(runner, mocker):
+    mocker.patch('products.vmware_cb_response.CbResponse._authenticate')
+    mocked_process_search = mocker.patch('products.vmware_cb_response.CbResponse.process_search')
+    with runner.isolated_filesystem() as temp_dir:
+        hunt_file = os.path.join(temp_dir, "hunt_file.yaml")
+        with open(hunt_file, 'w') as deffile:
+            deffile.write("""title: Test Query
+description: Test Query
+platforms:
+  - cbr:
+    - process_name:powershell.exe AND netconn_count:[1 TO *]""")
+        Surveyor("cbr").survey(hunt_file=hunt_file)
+        mocked_process_search.assert_called_once_with(Tag('Test Query', hunt_file), {}, "process_name:powershell.exe AND netconn_count:[1 TO *]")
