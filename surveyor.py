@@ -53,7 +53,7 @@ class Surveyor():
     log: logging.Logger
     supported_products: tuple = ('cbr', 'cbc', 'dfe', 'cortex', 's1')
     log_format: str = '[%(asctime)s] [%(levelname)-8s] [%(name)-36s] [%(filename)-20s:%(lineno)-4s] %(message)s'
-    _writer: Writer
+    _writer: Writer = None
 
     def __init__(self,
                  product: str,
