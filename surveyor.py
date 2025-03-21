@@ -171,7 +171,7 @@ class Surveyor():
                save_dir: str = "results",
                s1_use_powerquery: bool = True,
                use_tqdm: bool = False,
-               **kwargs) -> list:
+               **kwargs) -> tuple[list, str]:
         
         '''
         Args:
@@ -461,7 +461,7 @@ class Surveyor():
         except Exception as e:
             self.log.error(f'Caught {type(e).__name__} (see log for details): {e}')
 
-        return collected_results
+        return collected_results, os.path.join(log_dir, log_file_name)
 
     def _save_results(self, results: list[Result], tag: Tag, use_tqdm: bool = False) -> list:
         """
